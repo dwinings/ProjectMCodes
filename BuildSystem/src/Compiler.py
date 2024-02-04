@@ -1,11 +1,14 @@
 import os, ntpath, re
+import os.path
 from Library import File, Library
 from Section import Section
 from Common import cmdLineOutput, makeBinUtilCommandFile, makeCustomLinkerScriptFile
 from typing import List
-ppcCompiler = R'C:\Users\dareb\Documents\PPlusCpp\BuildSystem\Compiler\bin\powerpc-eabi-g++.exe'
-linkerScriptBase = R'C:\Users\dareb\Documents\PPlusCpp\BuildSystem\src\customLinkerScript.ld'
-binUtilCommandFilePath = 'IntermediateFiles\\binUtilCommands.txt'
+
+BUILD_SYSTEM_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
+ppcCompiler = os.path.join(BUILD_SYSTEM_DIR, 'Compiler', 'bin', 'powerpc-eabi-g++.exe')
+linkerScriptBase = os.path.join(BUILD_SYSTEM_DIR, 'src', 'customLinkerScript.ld')
+binUtilCommandFilePath = os.path.join('IntermediateFiles', 'binUtilCommands.txt')
 
 class Compiler:
     STANDARD_OPTIONS = [

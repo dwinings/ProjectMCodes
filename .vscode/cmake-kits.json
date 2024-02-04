@@ -17,6 +17,25 @@
     }
   },
   {
+    "name": "Frame Popups",
+    "compilers": {
+      "CXX": "${workspaceFolder}/BuildSystem/Compiler/bin/powerpc-eabi-g++.exe"
+    },
+    "preferredGenerator": {
+      "name": "MinGW Makefiles"
+    },
+    "cmakeSettings": {
+      "CMAKE_CXX_COMPILER_WORKS": 1,
+      "PRINT_GET_PARAMS": 0,
+      "CUSTOM_AI_FUNCTIONS": 0,
+      "PRINT_TEST": 0,
+      "SUPER_TRAINING": 0,
+      "PURE_AI": 0,
+      "DRAW_A_RECTANGLE": 0,
+      "FRAME_POPUPS": 1
+    }
+  },
+  {
     "name": "Ft Params",
     "compilers": {
       "CXX": "${workspaceFolder}/BuildSystem/Compiler/bin/powerpc-eabi-g++.exe"
