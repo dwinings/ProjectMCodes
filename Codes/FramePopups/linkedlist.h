@@ -31,11 +31,11 @@ class linkedlist {
         void append(T& element);
         void prepend(T& element);
 
-        LinkedlistIterator<T>* iterator();
-    private:
+        size_t length = 0;
+    protected:
         listnode_t* headNode;
         listnode_t* tailNode;
-        size_t length = 0;
+    friend class LinkedlistIterator<T>;
 };
 
 template <class T>
@@ -97,15 +97,10 @@ void linkedlist<T>::append(T& element) {
     newNode->prev->next = newNode;
 }
 
-template<class T>
-LinkedlistIterator<T>* linkedlist<T>::iterator() {
-    return new LinkedlistIterator<T>(this->headNode);
-}
-
 template <class T>
 class LinkedlistIterator {
     public:
-        LinkedlistIterator(listnode_t* headNode);
+        LinkedlistIterator(linkedlist<T>& list);
         ~LinkedlistIterator<T>();
         void deleteHere();
         void insertHere(T& element);
@@ -115,8 +110,8 @@ class LinkedlistIterator {
 };
 
 template<class T>
-LinkedlistIterator<T>::LinkedlistIterator(listnode_t* headNode) {
-    this->current = headNode;
+LinkedlistIterator<T>::LinkedlistIterator(linkedlist<T>& list) {
+    this->current = list.headNode;
 }
 
 template<class T>

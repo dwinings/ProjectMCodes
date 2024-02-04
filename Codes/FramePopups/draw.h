@@ -1,11 +1,16 @@
-#ifndef DRAW_H
-#define DRAW_H
+#ifndef WISP_DRAW_H
+#define WISP_DRAW_H
 
+#include "stddef.h"
 #include "Brawl/SO/SoMotionModule.h"
 #include "CLibs/cstring.h"
 #include "Graphics/Drawable.h"
+
+#include "common.h"
 #include "playerdata.h"
 #include "popup.h"
+
+#define sprintf ((int (*)(char* buffer, const char* format, ...)) 0x803f89fc)
 
 //hacky way to check if in game
 enum SCENE_TYPE {
@@ -20,16 +25,10 @@ enum SCENE_TYPE {
     UNKNOWN=0xFF
 };
 
-typedef struct Coord2D {
-    int x = 0;
-    int y = 0;
-} Coord2D;
-
-
 
 SCENE_TYPE getScene();
 
-Coord2D* getHpPopupBoxCoords(int playerNum, int totalPlayers);
+Coord2D getHpPopupBoxCoords(int playerNum);
 
 GXColor textColor();
 float fmax(float x1, float x2);
@@ -51,5 +50,7 @@ void drawAllPopups();
 #define WISP_DEFAULT_MSG_Y_POS 100
 #define WISP_DEFAULT_FONT_SCALE_X 0.5
 #define WISP_DEFAULT_FONT_SCALE_Y 0.7
+#define WISP_POPUP_VERTICAL_OFFSET 75
+#define WISP_MAX_PLAYERS 4
 
 #endif

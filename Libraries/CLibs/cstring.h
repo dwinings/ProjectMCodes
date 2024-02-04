@@ -22,6 +22,7 @@ char* strcpy(char* destination, const char* source, int length);
 int strcmp(const char* str1, const char* str2);
 //return ptr to first occurance of target in buffer, or nullptr if not found
 char* strstr(const char* buffer, const char* target);
+unsigned int strlen(const char* str, unsigned int maxLen = 2048);
 
 // parses string as int
 int atoi(const char* buffer);

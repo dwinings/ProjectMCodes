@@ -1,15 +1,17 @@
 #ifndef PROJECTMCODES_POPUP_H
 #define PROJECTMCODES_POPUP_H
 
+#include "common.h"
 #include "Containers/vector.h"
 #include "Graphics/Drawable.h"
 #include "Graphics/TextPrinter.h"
 #include "Brawl/Message.h"
 
+
 class Popup {
     public:
         Popup(
-            char* text, 
+            const char* text, 
             u32 startFrame
         );
         ~Popup();
@@ -27,8 +29,7 @@ class Popup {
         u16 durationSecs = 5;
         u16 minWidth = 100;
         GXColor color = 0xFFFFFFFF; // white
-        float xPos = 0;
-        float yPos = 0;
+        Coord2D coords;
     private:
         Rect* progressRect;
         char* text;

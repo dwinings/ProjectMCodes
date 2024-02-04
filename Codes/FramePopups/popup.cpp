@@ -1,13 +1,14 @@
 #include "draw.h"
 #include "popup.h"
 
-Popup::Popup(char* text, u32 startFrame) {
+Popup::Popup(const char* text, u32 startFrame) {
     this->startFrame = startFrame;
-    this->text = text;
+    this->text = new char[strlen(text)];
+    strcpy(this->text, text);
 }
 
 Popup::~Popup() {
-    delete this->text;
+    delete[] this->text;
 }
 
 void Popup::draw(TextPrinter& printer, u32 currentFrame) {
@@ -21,8 +22,8 @@ void Popup::draw(TextPrinter& printer, u32 currentFrame) {
         printerMsgObj->fontScaleX = WISP_DEFAULT_FONT_SCALE_X;
         printerMsgObj->fontScaleY = WISP_DEFAULT_FONT_SCALE_Y;
         printer.lineHeight = printerMsgObj->fontScaleY * 20;
-        printerMsgObj->xPos = this->xPos;
-        printerMsgObj->yPos = this->yPos;
+        printerMsgObj->xPos = coords.x;
+        printerMsgObj->yPos = coords.y;
         printerMsgObj->zPos = 0;
         printer.start2D();
 

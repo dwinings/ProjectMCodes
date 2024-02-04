@@ -22,6 +22,16 @@ int strcmp(const char* str1, const char* str2) {
     return _strcmp(str1, str2);
 }
 
+unsigned int strlen(const char* str, unsigned int maxLen) {
+    unsigned int counter = 0;
+    while (*str != '\0' && counter < maxLen) {
+        counter++;
+        str++;
+    }
+
+    return counter + 1; // +1 for the null byte
+}
+
 char* strstr(const char* buffer, const char* target) {
     return _strstr(buffer, target);
 }

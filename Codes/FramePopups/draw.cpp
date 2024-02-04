@@ -12,12 +12,9 @@
 
 #include "Graphics/Drawable.h"
 #include "./draw.h"
-#include "./menu.h"
 #include "./linkedlist.h"
 
 
-// setup global variables
-Menu* myMenu;
 // makes menu feel smooth
 signed char timer = 5;
 signed char cmdDelay = 50;
@@ -27,10 +24,10 @@ bool paused = false;
 bool visible = false;
 bool haveSaidHello = false;
 int wispMenuXPos = 200;
-int wispMenuYPos = 350;
+int wispMenuYPos = 50;
 u8 wispAlpha = 255;
 
-char strManipBuffer[200] = {}; 
+char strManipBuffer[512] = {}; 
 float wispFontScaleX = 0.45;
 float wispFontScaleY = 0.7;
 int wispLineHeightMultiplier = 20;
@@ -38,8 +35,13 @@ unsigned int frameCounter = 0;
 unsigned int popupCounter = 0;
 signed char p1Timer;
 
-struct PlayerData allPlayerData[4] = {};
-linkedlist<Popup> popups = linkedlist<Popup>();
+struct PlayerData allPlayerData[WISP_MAX_PLAYERS] = {};
+linkedlist<Popup> playerPopups[WISP_MAX_PLAYERS] = {
+    linkedlist<Popup>(),
+    linkedlist<Popup>(),
+    linkedlist<Popup>(),
+    linkedlist<Popup>()
+};
 
 
 // responsible for pausing exeuction of the game itself while the code menu is up
@@ -56,19 +58,18 @@ extern "C" void checkMenuPaused(char* gfTaskSchedulerInst) {
 }
 
 
-void printMessage(char const* msg, GXColor color = COLOR_WHITE){
-    OSReport(msg);
+void printMessage(char const* msg, float xPos, float yPos, GXColor color = COLOR_WHITE){
+    OSReport("%s\n", msg);
     printer.setup();
-    printer.setTextColor(textColor());
+    printer.setTextColor(color);
     printer.renderPre = true;
     Message* printerMsgObj = &(printer.message);
+    printer.lineHeight = wispFontScaleY * wispLineHeightMultiplier;
     printerMsgObj->fontScaleY = wispFontScaleY;
     printerMsgObj->fontScaleX = wispFontScaleX;
-    printer.lineHeight = printerMsgObj->fontScaleY * wispLineHeightMultiplier;
-    printerMsgObj->xPos = wispMenuXPos;
-    printerMsgObj->yPos = wispMenuYPos;
+    printerMsgObj->xPos = xPos;
+    printerMsgObj->yPos = yPos;
     printerMsgObj->zPos = 0;
-    printer.setTextColor(color);
     printer.start2D();
 
     printer.startBoundingBox();
@@ -134,10 +135,7 @@ void handleInput() {
 }
 
 void swapPlayerDataFrames(u8 player) {
-    PlayerDataOnFrame tmp = allPlayerData[player].current;
-    allPlayerData[player].current = allPlayerData[player].prev;
-    allPlayerData[player].prev = tmp;
-    memset(&(allPlayerData[player].current), 0, sizeof(struct PlayerDataOnFrame));
+
 }
 
 // calls our function
@@ -149,43 +147,15 @@ INJECTION("update_pre_frame", /*0x8001792c*/ 0x800177B0, R"(
 )");
 extern "C" void updatePreFrame() {
     SCENE_TYPE sceneType = (SCENE_TYPE)getScene();
-    frameCounter += 1;
-    char buffer[200] = {}; 
-    renderables.renderPre();
-
 
     if (sceneType == SCENE_TYPE::VS || sceneType == SCENE_TYPE::TRAINING_MODE_MMS) {
-
-        if (!haveSaidHello) {
-            haveSaidHello = true;
-            OSReport("Hello from wisp\n");
-        }
+        frameCounter += 1;
+        renderables.renderPre();
 
         // Lazy debounce.
         if (frameCounter % 3 == 0) {
             handleInput();
         }
-
-        /* Mysterious setup.
-        printer.setup();
-
-        printer.start2D();
-        printer.setup();
-        */
-
-        Message* printerMsgObj = &(printer.message);
-
-        OSReport("Message: 0x%08x\n", (void*)printerMsgObj);
-
-        printer.setTextColor(textColor());
-        printer.renderPre = true;
-        printerMsgObj->fontScaleY = wispFontScaleY;
-        printerMsgObj->fontScaleX = wispFontScaleX;
-        printer.lineHeight = printerMsgObj->fontScaleY * wispLineHeightMultiplier;
-        printerMsgObj->xPos = wispMenuXPos;
-        printerMsgObj->yPos = wispMenuYPos;
-        printerMsgObj->zPos = 0;
-
 
         int fighterCount;
         fighterCount = FIGHTER_MANAGER->getEntryCount();
@@ -193,21 +163,26 @@ extern "C" void updatePreFrame() {
             gatherData(i);
         }
 
+       sprintf(
+        strManipBuffer, "Player 1:\n  - Action: %s\n  - Subaction: %s", 
+        allPlayerData[0].current->actionname,
+        allPlayerData[0].current->subactionName
+       );
+
+       printMessage(strManipBuffer, wispMenuXPos, wispMenuYPos);
+
+
         if (allPlayerData[0].didEnterShield()) {
-            Coord2D* coords = getHpPopupBoxCoords(1, 2);
-            char* popupBuffer = new char[256];
-            sprintf(popupBuffer, "Hey, player 1 entered shield.", popupCounter);
-            Popup* p = new Popup(popupBuffer, frameCounter);
-            p->xPos = coords->x;
-            p->yPos = coords->y;
+            Popup* p = new Popup("Hey, player 1 entered shield.\n", frameCounter);
             p->durationSecs = 3;
-            p->minWidth = 100;
-            popups.append(*p);
+            p->minWidth = 150;
+            playerPopups[0].append(*p);
         }
+
+        drawAllPopups();
     }
 
 
-    drawAllPopups();
     startNormalDraw();
 }
 
@@ -218,16 +193,27 @@ void gatherData(u8 player) {
         return;
     }
 
-    swapPlayerDataFrames(player);
-
     PlayerData& playerData = allPlayerData[player];
-    EntryID entryId = FIGHTER_MANAGER->getEntryId(player);
+    playerData.prepareNextFrame();
+
+    EntryID entryId = FIGHTER_MANAGER->getEntryIdFromIndex(player);
     Fighter* fighter = FIGHTER_MANAGER->getFighter(entryId, 0);
     int character = fighter->getFtKind();
 
     auto workModule = fighter->modules->workModule;
     auto statusModule = fighter->modules->statusModule;
     auto motionModule = fighter->modules->motionModule;
+
+    OSReport(
+        "Player: %d\n"
+        "  char type: 0x%X\n" 
+        "  entryId: 0x%X\n"
+        "  figher addr: 0x%X\n"
+        ,
+        player, character, entryId, fighter
+    );
+
+    OSReport("Module Locations:\n\tworkModule: %x\n\tstatusModule: %x\n\tmotionModule: %x\n", workModule, statusModule, motionModule);
 
     /* hitstun/shieldstun stuff comes from the work module. */
     if (workModule != nullptr) {
@@ -244,14 +230,15 @@ void gatherData(u8 player) {
         auto LABasicsArr = (*(int(*)[workModule->LAVariables->basicsSize])workModule->LAVariables->basics);
         int remainingHitstun = LABasicsArr[56];
 
-        playerData.current.hitstun = remainingHitstun;
+        playerData.current->hitstun = remainingHitstun;
         if (playerData.didReceiveHitstun()) {
             playerData.maxHitstun = remainingHitstun;
         }
     }
 
     if (statusModule != nullptr) {
-        statusModule->getStatusName1(statusModule->action);
+        /* OSReport("Action number: %x\n", statusModule->action); */
+        strcpy(playerData.current->actionname, statusModule->getStatusName1(statusModule->action), WISP_ACTION_NAME_LEN);
     }
 
 
@@ -261,13 +248,14 @@ void gatherData(u8 player) {
     if (animationData.resPtr != nullptr) {
         auto animationResource = animationData.resPtr->CHR0Ptr;
         if (animationResource == nullptr) {
-            strcpy(playerData.current.subactionName, "UNKNOWN", WISP_ACTION_NAME_LEN);
-            playerData.current.totalFrames = -1;
+            strcpy(playerData.current->subactionName, "UNKNOWN", WISP_ACTION_NAME_LEN);
+            playerData.current->totalFrames = -1;
+        } else {
+            playerData.current->totalFrames = animationResource->animLength;
+            strcpy(playerData.current->subactionName, animationResource->getString(), WISP_ACTION_NAME_LEN);
         }
 
-        playerData.current.currentFrame = (u32)animationData.animFrame;
-        strcpy(playerData.current.subactionName, animationResource->getString(), WISP_ACTION_NAME_LEN);
-        playerData.current.totalFrames = animationResource->animLength;
+        playerData.current->currentFrame = (u32)animationData.animFrame;
     }
 }
 
@@ -286,22 +274,23 @@ SCENE_TYPE getScene() {
     return SCENE_TYPE::UNKNOWN;
 }
 
-Coord2D P1_2P_COORDS = (Coord2D){.x = 200, .y = 350};
-Coord2D P2_2P_COORDS = (Coord2D){.x = 355, .y = 350};
-Coord2D* getHpPopupBoxCoords(int playerNum, int totalPlayers) {
+Coord2D P1_2P_COORDS = Coord2D{.x = 200, .y = 350};
+Coord2D P2_2P_COORDS = Coord2D{.x = 355, .y = 350};
+Coord2D getHpPopupBoxCoords(int playerNum) {
+    int totalPlayers = FIGHTER_MANAGER->getEntryCount();
     if (totalPlayers == 2) {
-        if (playerNum == 1) {
-            return &P1_2P_COORDS;
+        if (playerNum == 0) {
+            return P1_2P_COORDS;
         }
 
-        if (playerNum == 2) {
-            return &P2_2P_COORDS;
+        if (playerNum == 1) {
+            return P2_2P_COORDS;
         }
     }
 
     // TODO: Other numbers of players.
 
-    return nullptr;
+    return Coord2D{};
 }
 
 float fmax(float x1, float x2) {
@@ -324,17 +313,23 @@ GXColor textColor() {
 }
 
 void drawAllPopups() {
-    auto itr = popups.iterator();
-    Popup* popup;
+    for(int i = 0; i < WISP_MAX_PLAYERS; i++) {
+        auto itr = LinkedlistIterator(playerPopups[i]);
+        Popup* popup;
+        Coord2D coords = getHpPopupBoxCoords(i);
 
-    while ((popup = itr->next()) != nullptr) {
-        if (popup->expired(frameCounter)) {
-            itr->deleteHere();
-            delete popup;
-        } else {
-            popup->draw(printer, frameCounter);
+
+        while ((popup = itr.next()) != nullptr) {
+            if (popup->expired(frameCounter)) {
+                itr.deleteHere();
+                delete popup;
+            } else {
+                popup->coords = coords;
+                OSReport("Set popup coords to %d,%d\n", coords.x, coords.y);
+                popup->draw(printer, frameCounter);
+
+                coords.y -= WISP_POPUP_VERTICAL_OFFSET;
+            }
         }
     }
-
-    delete itr;
 }
