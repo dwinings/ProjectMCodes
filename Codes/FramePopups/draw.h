@@ -10,7 +10,6 @@
 #include "playerdata.h"
 #include "popup.h"
 
-#define sprintf ((int (*)(char* buffer, const char* format, ...)) 0x803f89fc)
 
 //hacky way to check if in game
 enum SCENE_TYPE {
@@ -50,7 +49,7 @@ void drawAllPopups();
 #define WISP_DEFAULT_MSG_Y_POS 100
 #define WISP_DEFAULT_FONT_SCALE_X 0.5
 #define WISP_DEFAULT_FONT_SCALE_Y 0.7
-#define WISP_POPUP_VERTICAL_OFFSET 75
+#define WISP_POPUP_VERTICAL_OFFSET 50
 #define WISP_MAX_PLAYERS 4
 
 #endif

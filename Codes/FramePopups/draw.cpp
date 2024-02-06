@@ -27,7 +27,7 @@ int wispMenuXPos = 200;
 int wispMenuYPos = 50;
 u8 wispAlpha = 255;
 
-char strManipBuffer[512] = {}; 
+char strManipBuffer[WISP_STR_MANIP_SIZE] = {}; 
 float wispFontScaleX = 0.45;
 float wispFontScaleY = 0.7;
 int wispLineHeightMultiplier = 20;
@@ -134,10 +134,6 @@ void handleInput() {
     }
 }
 
-void swapPlayerDataFrames(u8 player) {
-
-}
-
 // calls our function
 INJECTION("update_pre_frame", /*0x8001792c*/ 0x800177B0, R"(
     SAVE_REGS
@@ -163,14 +159,8 @@ extern "C" void updatePreFrame() {
             gatherData(i);
         }
 
-       sprintf(
-        strManipBuffer, "Player 1:\n  - Action: %s\n  - Subaction: %s", 
-        allPlayerData[0].current->actionname,
-        allPlayerData[0].current->subactionName
-       );
-
-       printMessage(strManipBuffer, wispMenuXPos, wispMenuYPos);
-
+        allPlayerData[0].current->debugStr(strManipBuffer);
+        printMessage(strManipBuffer, wispMenuXPos, wispMenuYPos);
 
         if (allPlayerData[0].didEnterShield()) {
             Popup* p = new Popup("Hey, player 1 entered shield.\n", frameCounter);
@@ -238,24 +228,34 @@ void gatherData(u8 player) {
 
     if (statusModule != nullptr) {
         /* OSReport("Action number: %x\n", statusModule->action); */
-        strcpy(playerData.current->actionname, statusModule->getStatusName1(statusModule->action), WISP_ACTION_NAME_LEN);
+        strcpy(playerData.current->actionname, statusModule->getStatusName(), WISP_ACTION_NAME_LEN);
+        playerData.current->action = statusModule->action;
+        if (statusModule->attackHasConnected) {
+            OSReport("statusModule->attackHasConnected = True\n");
+        }
     }
 
 
-
-    soAnimChr animationData = motionModule->mainAnimationData;
     /* subaction stuff */
-    if (animationData.resPtr != nullptr) {
-        auto animationResource = animationData.resPtr->CHR0Ptr;
-        if (animationResource == nullptr) {
-            strcpy(playerData.current->subactionName, "UNKNOWN", WISP_ACTION_NAME_LEN);
-            playerData.current->totalFrames = -1;
-        } else {
-            playerData.current->totalFrames = animationResource->animLength;
-            strcpy(playerData.current->subactionName, animationResource->getString(), WISP_ACTION_NAME_LEN);
-        }
+    if (motionModule != nullptr) {
+        playerData.current->subaction = motionModule->subAction;
+        playerData.current->subactionFrame = motionModule->getFrame();
+        playerData.current->subactionEndFrame = motionModule->getEndFrame();
+        soAnimChr animationData = motionModule->mainAnimationData;
 
-        playerData.current->currentFrame = (u32)animationData.animFrame;
+        if (animationData.resPtr != nullptr) {
+            auto animationResource = animationData.resPtr->CHR0Ptr;
+            OSReport("Animation Resource: 0x%X\n", animationResource);
+            if (animationResource == nullptr) {
+                strcpy(playerData.current->subactionName, "UNKNOWN", WISP_ACTION_NAME_LEN);
+                playerData.current->totalFrames = -1;
+            } else {
+                playerData.current->totalFrames = animationResource->animLength;
+                strcpy(playerData.current->subactionName, animationResource->getString(), WISP_ACTION_NAME_LEN);
+            }
+
+            playerData.current->currentFrame = (u32)animationData.animFrame;
+        }
     }
 }
 

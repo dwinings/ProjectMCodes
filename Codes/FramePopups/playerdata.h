@@ -4,17 +4,25 @@
 #include "CLibs/cstring.h"
 #include "Memory.h"
 #include "stddef.h"
+#include "common.h"
 
 bool startsWith(const char* testStr, const char* prefix);
 
 struct PlayerDataOnFrame {
-    char subactionName[32];
+    u32 action = 0;
     char actionname[32];
+    u32 subaction = 0;
+    char subactionName[32];
+    float subactionFrame = 0;
+    float subactionEndFrame = 0;
+
     u16 currentFrame = 0;
     u16 totalFrames = 0;
     u16 hitstun = 0;
 
     inline bool isShielding();
+
+    int debugStr(char* buffer);
 };
 
 struct PlayerData {
