@@ -27,7 +27,7 @@ int wispMenuXPos = 200;
 int wispMenuYPos = 50;
 u8 wispAlpha = 255;
 
-char strManipBuffer[WISP_STR_MANIP_SIZE] = {}; 
+char strManipBuffer[WISP_STR_MANIP_SIZE]; 
 float wispFontScaleX = 0.45;
 float wispFontScaleY = 0.7;
 int wispLineHeightMultiplier = 20;
@@ -159,6 +159,7 @@ extern "C" void updatePreFrame() {
             gatherData(i);
         }
 
+        OSReport("StrManipBuffer: 0x%X\n", strManipBuffer);
         allPlayerData[0].current->debugStr(strManipBuffer);
         printMessage(strManipBuffer, wispMenuXPos, wispMenuYPos);
 
@@ -174,6 +175,40 @@ extern "C" void updatePreFrame() {
 
 
     startNormalDraw();
+}
+
+void debugWorkModule(const soWorkManageModuleImpl& workModule) {
+    u32 i;
+    auto RABasicsArr = (*(int(*)[workModule.RAVariables->basicsSize])workModule.RAVariables->basics);
+    auto RAFloatArr = (*(int(*)[workModule.RAVariables->floatsSize])workModule.RAVariables->floats);
+    auto LABasicsArr = (*(int(*)[workModule.LAVariables->basicsSize])workModule.LAVariables->basics);
+    auto LAFloatArr = (*(float(*)[workModule.LAVariables->floatsSize])workModule.LAVariables->floats);
+
+    for(i = 0; i < workModule.RAVariables->basicsSize; i++) {
+        if (RABasicsArr[i] != 0 && RABasicsArr[i] != -1){
+            OSReport("\tRABasic #%d: %d \n", i, RABasicsArr[i]);
+        }
+    }
+
+    for (i = 0; i < workModule.RAVariables->floatsSize; i++) {
+        if (RAFloatArr[i] != 0 && RAFloatArr[i] != -1) {
+            OSReport("\tRAFloat #%d: %0.2f\n", i, RAFloatArr[i]);
+        }
+    }
+
+    for(i = 0; i < workModule.LAVariables->basicsSize; i++) {
+        if (LABasicsArr[i] != 0 && LABasicsArr[i] != -1) {
+            OSReport("\tLABasic #%d: %d \n", i, LABasicsArr[i]);
+        }
+    }
+
+    for (i = 0; i < workModule.LAVariables->floatsSize; i++) {
+        if (LAFloatArr[i] != 0 && LAFloatArr[i] != -1) {
+            OSReport("\tLAFloat #%d: %0.2f\n", i, LAFloatArr[i]);
+        }
+    }
+
+    return;
 }
 
 
@@ -193,6 +228,7 @@ void gatherData(u8 player) {
     auto workModule = fighter->modules->workModule;
     auto statusModule = fighter->modules->statusModule;
     auto motionModule = fighter->modules->motionModule;
+    auto stopModule = fighter->modules->ftStopModule;
 
     OSReport(
         "Player: %d\n"
@@ -207,8 +243,14 @@ void gatherData(u8 player) {
 
     /* hitstun/shieldstun stuff comes from the work module. */
     if (workModule != nullptr) {
+        OSReport("Work module vals for player %d:\n", player);
+        debugWorkModule(*workModule);
         auto RABasicsArr = (*(int(*)[workModule->RAVariables->basicsSize])workModule->RAVariables->basics);
+        auto RAFloatArr = (*(int(*)[workModule->RAVariables->floatsSize])workModule->RAVariables->floats);
+        auto LABasicsArr = (*(int(*)[workModule->LAVariables->basicsSize])workModule->LAVariables->basics);
         auto LAFloatArr = (*(float(*)[workModule->LAVariables->floatsSize])workModule->LAVariables->floats);
+
+
         float shieldValue = LAFloatArr[0x3];
 
         float prevFrameShieldstun = 0; //fixme
@@ -217,7 +259,6 @@ void gatherData(u8 player) {
             float maxShieldstun = RABasicsArr[0x5];
         }
 
-        auto LABasicsArr = (*(int(*)[workModule->LAVariables->basicsSize])workModule->LAVariables->basics);
         int remainingHitstun = LABasicsArr[56];
 
         playerData.current->hitstun = remainingHitstun;
@@ -238,11 +279,8 @@ void gatherData(u8 player) {
 
     /* subaction stuff */
     if (motionModule != nullptr) {
-        playerData.current->subaction = motionModule->subAction;
-        playerData.current->subactionFrame = motionModule->getFrame();
-        playerData.current->subactionEndFrame = motionModule->getEndFrame();
         soAnimChr animationData = motionModule->mainAnimationData;
-
+        playerData.current->subaction = motionModule->subAction;
         if (animationData.resPtr != nullptr) {
             auto animationResource = animationData.resPtr->CHR0Ptr;
             OSReport("Animation Resource: 0x%X\n", animationResource);
@@ -250,6 +288,10 @@ void gatherData(u8 player) {
                 strcpy(playerData.current->subactionName, "UNKNOWN", WISP_ACTION_NAME_LEN);
                 playerData.current->totalFrames = -1;
             } else {
+                playerData.current->subactionFrame = motionModule->getFrame();
+
+                // do these ever differ, except by 1?
+                playerData.current->subactionEndFrame = motionModule->getEndFrame();
                 playerData.current->totalFrames = animationResource->animLength;
                 strcpy(playerData.current->subactionName, animationResource->getString(), WISP_ACTION_NAME_LEN);
             }

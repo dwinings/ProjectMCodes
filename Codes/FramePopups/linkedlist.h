@@ -8,7 +8,7 @@
 #include "stddef.h"
 #include <Brawl/Message.h>
 
-#define OSReport ((void (*)(const char* text, ...)) 0x801d8600)
+#include "common.h"
 
 typedef struct listnode {
     ~listnode(){};

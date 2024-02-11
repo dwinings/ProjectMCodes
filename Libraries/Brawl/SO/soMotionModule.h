@@ -85,6 +85,8 @@ struct soMotionChangeParam {
 
 struct soMotionModule {
     float getFrame();
+
+    // Crashes if mainAnimationData.resPtr is null
     float getEndFrame();
     void changeMotionRequest(soMotionChangeParam* params);
 
