@@ -155,20 +155,48 @@ extern "C" void updatePreFrame() {
 
         int fighterCount;
         fighterCount = FIGHTER_MANAGER->getEntryCount();
-        for (char i = 0; i < fighterCount; i++) {
-            gatherData(i);
+        u8 player = 0;
+        for (player = 0; player < fighterCount; player++) {
+            gatherData(player);
+
+            /*
+            if (allPlayerData[i].didEnableCancel()) {
+                snprintf(strManipBuffer, WISP_STR_MANIP_SIZE, "IASA Frame %d/%d\n", 
+                    allPlayerData[i].current->currentFrame, allPlayerData[i].current->totalFrames
+                );
+                Popup& p = *(new Popup(strManipBuffer, frameCounter));
+                p.durationSecs = 3;
+                p.minWidth = 150;
+                p.coords = getHpPopupBoxCoords(i); 
+                playerPopups[i].append(p);
+            }
+            */
         }
 
-        OSReport("StrManipBuffer: 0x%X\n", strManipBuffer);
-        allPlayerData[0].current->debugStr(strManipBuffer);
+        for (player = 0; player < fighterCount; player++) {
+            resolveAttackTarget(player);
+        }
+
+        for (player = 0; player < fighterCount; player++) {
+            checkAttackTargetActionable(player);
+        }
+
+        // OSReport("StrManipBuffer: 0x%X\n", strManipBuffer);
+        /*
+        auto player0 = allPlayerData[0];
+        player0.debugStr(strManipBuffer);
         printMessage(strManipBuffer, wispMenuXPos, wispMenuYPos);
+        */
 
-        if (allPlayerData[0].didEnterShield()) {
-            Popup* p = new Popup("Hey, player 1 entered shield.\n", frameCounter);
-            p->durationSecs = 3;
-            p->minWidth = 150;
-            playerPopups[0].append(*p);
+        /*
+        if (player0.didEnterShield()) {
+            Popup& p = *(new Popup("Hey, player 1 entered shield.\n", frameCounter));
+            p.durationSecs = 3;
+            p.minWidth = 150;
+            playerPopups[0].append(p);
         }
+        */
+
 
         drawAllPopups();
     }
@@ -220,6 +248,8 @@ void gatherData(u8 player) {
 
     PlayerData& playerData = allPlayerData[player];
     playerData.prepareNextFrame();
+    PlayerDataOnFrame& currentData = *playerData.current;
+    PlayerDataOnFrame& prevData = *playerData.current;
 
     EntryID entryId = FIGHTER_MANAGER->getEntryIdFromIndex(player);
     Fighter* fighter = FIGHTER_MANAGER->getFighter(entryId, 0);
@@ -229,7 +259,9 @@ void gatherData(u8 player) {
     auto statusModule = fighter->modules->statusModule;
     auto motionModule = fighter->modules->motionModule;
     auto stopModule = fighter->modules->ftStopModule;
+    auto cancelModule = fighter->getCancelModule();
 
+    /*
     OSReport(
         "Player: %d\n"
         "  char type: 0x%X\n" 
@@ -238,29 +270,33 @@ void gatherData(u8 player) {
         ,
         player, character, entryId, fighter
     );
+    */
 
-    OSReport("Module Locations:\n\tworkModule: %x\n\tstatusModule: %x\n\tmotionModule: %x\n", workModule, statusModule, motionModule);
+    // OSReport("Module Locations:\n\tworkModule: %x\n\tstatusModule: %x\n\tmotionModule: %x\n", workModule, statusModule, motionModule);
 
     /* hitstun/shieldstun stuff comes from the work module. */
     if (workModule != nullptr) {
-        OSReport("Work module vals for player %d:\n", player);
-        debugWorkModule(*workModule);
+        // OSReport("Work module vals for player %d:\n", player);
+        // debugWorkModule(*workModule);
         auto RABasicsArr = (*(int(*)[workModule->RAVariables->basicsSize])workModule->RAVariables->basics);
         auto RAFloatArr = (*(int(*)[workModule->RAVariables->floatsSize])workModule->RAVariables->floats);
         auto LABasicsArr = (*(int(*)[workModule->LAVariables->basicsSize])workModule->LAVariables->basics);
         auto LAFloatArr = (*(float(*)[workModule->LAVariables->floatsSize])workModule->LAVariables->floats);
 
 
-        float shieldValue = LAFloatArr[0x3];
+        // float shieldValue = LAFloatArr[0x3];
 
-        float prevFrameShieldstun = 0; //fixme
-        float shieldstun = RABasicsArr[0x5];
-        if (shieldstun != prevFrameShieldstun - 1 && shieldstun != 0) {
-            float maxShieldstun = RABasicsArr[0x5];
+        currentData.shieldstun = RABasicsArr[0x5];
+        if (currentData.shieldstun != 0) {
+            if (currentData.shieldstun != (prevData.shieldstun - 1)) {
+                playerData.maxShieldstun = RABasicsArr[0x5];
+            }
+            if (currentData.shieldstun == 0) {
+                playerData.maxShieldstun = 0;
+            }
         }
 
-        int remainingHitstun = LABasicsArr[56];
-
+        int remainingHitstun = LABasicsArr[0x38];
         playerData.current->hitstun = remainingHitstun;
         if (playerData.didReceiveHitstun()) {
             playerData.maxHitstun = remainingHitstun;
@@ -269,10 +305,10 @@ void gatherData(u8 player) {
 
     if (statusModule != nullptr) {
         /* OSReport("Action number: %x\n", statusModule->action); */
-        strcpy(playerData.current->actionname, statusModule->getStatusName(), WISP_ACTION_NAME_LEN);
+        // never seems to work. strcpy(playerData.current->actionname, statusModule->getStatusName(), WISP_ACTION_NAME_LEN);
         playerData.current->action = statusModule->action;
         if (statusModule->attackHasConnected) {
-            OSReport("statusModule->attackHasConnected = True\n");
+            playerData.didConnectAttack = true;
         }
     }
 
@@ -283,7 +319,7 @@ void gatherData(u8 player) {
         playerData.current->subaction = motionModule->subAction;
         if (animationData.resPtr != nullptr) {
             auto animationResource = animationData.resPtr->CHR0Ptr;
-            OSReport("Animation Resource: 0x%X\n", animationResource);
+            // OSReport("Animation Resource: 0x%X\n", animationResource);
             if (animationResource == nullptr) {
                 strcpy(playerData.current->subactionName, "UNKNOWN", WISP_ACTION_NAME_LEN);
                 playerData.current->totalFrames = -1;
@@ -297,6 +333,71 @@ void gatherData(u8 player) {
             }
 
             playerData.current->currentFrame = (u32)animationData.animFrame;
+        }
+
+    }
+    if (cancelModule != nullptr) {
+        u32 isEnableCancel = cancelModule->isEnableCancel();
+        currentData.canCancel = (bool)isEnableCancel;
+    }
+}
+
+void resolveAttackTarget(u8 playerNum) {
+    PlayerData& player = allPlayerData[playerNum];
+    // False most of the time, so this isn't as slow as it looks.
+    if (player.didConnectAttack != false && player.attackTarget == nullptr) {
+        for (char otherP = 0; otherP < WISP_MAX_PLAYERS; otherP++) {
+            if (playerNum == otherP) {
+                continue;
+            }
+
+            if (allPlayerData[otherP].didReceiveHitstun()){
+                player.attackTarget = &(allPlayerData[otherP]);
+                break;
+            }
+        }
+    }
+}
+
+void checkAttackTargetActionable(u8 playerNum) {
+    PlayerData& player = allPlayerData[playerNum];
+
+    // Player is attacking someone.
+    if (player.attackTarget != nullptr){
+        PlayerData& target = *(player.attackTarget);
+
+        bool playerIsActionable = (
+            !isAttackingAction(player.current->action)
+            || player.current->canCancel
+        );
+
+        bool targetIsActionable = (
+            target.current->hitstun == 0 && target.current->shieldstun == 0
+            && !startsWith(target.current->subactionName, "Landing")
+        );
+
+        if (playerIsActionable && player.becameActionableOnFrame == -1) {
+            player.becameActionableOnFrame = frameCounter;
+        }
+
+        if (targetIsActionable && target.becameActionableOnFrame == -1) {
+            target.becameActionableOnFrame = frameCounter;
+        }
+
+        if (playerIsActionable && targetIsActionable) {
+            /* POP UP TIME! */
+            short int advantage = player.becameActionableOnFrame - target.becameActionableOnFrame;
+
+            snprintf(strManipBuffer, WISP_STR_MANIP_SIZE, "Advantage: %d\n", advantage);
+            Popup& popup = *(new Popup(strManipBuffer, frameCounter));
+            popup.coords = getHpPopupBoxCoords(playerNum);
+            popup.durationSecs = 3;
+            playerPopups[playerNum].append(popup);
+
+            player.attackTarget = nullptr;
+            player.becameActionableOnFrame = -1;
+            player.didConnectAttack = false;
+            target.becameActionableOnFrame = -1;
         }
     }
 }
@@ -367,7 +468,7 @@ void drawAllPopups() {
                 delete popup;
             } else {
                 popup->coords = coords;
-                OSReport("Set popup coords to %d,%d\n", coords.x, coords.y);
+                // OSReport("Set popup coords to %d,%d\n", coords.x, coords.y);
                 popup->draw(printer, frameCounter);
 
                 coords.y -= WISP_POPUP_VERTICAL_OFFSET;

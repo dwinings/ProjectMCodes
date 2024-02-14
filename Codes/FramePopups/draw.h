@@ -3,6 +3,7 @@
 
 #include "stddef.h"
 #include "Brawl/SO/SoMotionModule.h"
+#include "Brawl/FT/ftCancelModule.h"
 #include "CLibs/cstring.h"
 #include "Graphics/Drawable.h"
 
@@ -35,6 +36,8 @@ int max(int x1, int x2);
 
 void gatherData(u8 fighter);
 void drawAllPopups();
+void resolveAttackTarget(u8 playerNum);
+void checkAttackTargetActionable(u8 playerNum);
 
 
 

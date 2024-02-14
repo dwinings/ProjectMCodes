@@ -8,9 +8,9 @@
 
 bool startsWith(const char* testStr, const char* prefix);
 
+// This is stuff that changes on every frame.
 struct PlayerDataOnFrame {
     u32 action = 0;
-    char actionname[32];
     u32 subaction = 0;
     char subactionName[32];
     float subactionFrame = 0;
@@ -19,24 +19,39 @@ struct PlayerDataOnFrame {
     u16 currentFrame = 0;
     u16 totalFrames = 0;
     u16 hitstun = 0;
+    u16 shieldstun = 0;
+    bool canCancel = 0;
 
     inline bool isShielding();
 
-    int debugStr(char* buffer);
 };
 
+// This is mostly meta-data that we track over multiple frames.
+// It doesn't auto-clear and needs to be cleared manually.
 struct PlayerData {
     public:
         u16 maxHitstun = 0;
+        u16 maxShieldstun = 0;
+
+
+        /* Stuff for on-shield targeting bookkeeping*/
+        PlayerData* attackTarget = nullptr;
+        bool didConnectAttack = 0;
+        u32 becameActionableOnFrame = -1;
+        /*******/
+
+        /* Swapped every frame */
         PlayerDataOnFrame* prev = &_f1;
         PlayerDataOnFrame* current = &_f2;
 
         inline bool didReceiveHitstun();
         inline bool didBecomeActionable();
+        inline bool didEnableCancel();
         inline bool didActionChange();
         inline bool didSubactionChange();
         inline bool didEnterShield();
         inline void prepareNextFrame();
+        int debugStr(char* buffer);
     private: 
         PlayerDataOnFrame _f1;
         PlayerDataOnFrame _f2;
@@ -64,16 +79,12 @@ inline bool PlayerData::didBecomeActionable() {
     return true;
 }
 
+inline bool PlayerData::didEnableCancel() {
+    return current->canCancel && !(prev->canCancel);
+}
+
 inline bool PlayerData::didActionChange() {
-    if (
-        prev->actionname == nullptr ||
-        current->actionname == nullptr
-    ) {
-        return false;
-    }
-
-    return strcmp(current->actionname, prev->actionname) != 0;
-
+    return current->action != prev->action;
 }
 
 inline bool PlayerData::didSubactionChange() {

@@ -18,22 +18,25 @@ bool startsWith(const char* testStr, const char* prefix) {
 }
 
 
-int PlayerDataOnFrame::debugStr(char* buffer) {
-    OSReport("buffer: 0x%X\n", buffer);
-    OSReport("actionname: 0x%X\n", actionname);
-    OSReport("subactionName: 0x%X\n", subactionName);
+int PlayerData::debugStr(char* buffer) {
+    // OSReport("buffer: 0x%X\n", buffer);
+    // OSReport("actionname: 0x%X\n", actionname);
+    // OSReport("subactionName: 0x%X\n", subactionName);
+    PlayerDataOnFrame& f = *(this->current);
 
     return snprintf(buffer, WISP_STR_MANIP_SIZE,
     "  Action: 0x%X, %s\n"
-    "  Subaction: 0x%X, %s (%0.2f/%0.2f)\n"
+    "  Subaction: 0x%X, %s\n"
     "  Frames: %d/%d\n"
-    "  Hitstun: %d"
+    "  Hitstun: %d/%d\n"
+    "  Shieldstun?: %d/%d\n"
     "  Shielding: %c\n"
     ,
-    action, actionname,
-    subaction, subactionName, subactionFrame, subactionEndFrame,
-    (u32)currentFrame, (u32)totalFrames,
-    (u32)hitstun,
-    (isShielding() ? 'T' : 'F')
+    f.action, actionName(f.action),
+    f.subaction, f.subactionName,
+    f.currentFrame, f.totalFrames,
+    f.hitstun, maxHitstun,
+    f.shieldstun, maxShieldstun,
+    (f.isShielding() ? 'T' : 'F')
     );
 }
