@@ -1,12 +1,13 @@
 #ifndef PROJECTMCODES_POPUP_H
 #define PROJECTMCODES_POPUP_H
 
-#include "common.h"
-#include "Containers/vector.h"
-#include "Graphics/Drawable.h"
-#include "Graphics/TextPrinter.h"
-#include "Brawl/Message.h"
+#include <CLibs/cstring.h>
+#include <Containers/vector.h>
+#include <Graphics/Drawable.h>
+#include <Graphics/TextPrinter.h>
+#include <Brawl/Message.h>
 
+#include "common.h"
 
 class Popup {
     public:
@@ -15,13 +16,9 @@ class Popup {
             u32 startFrame
         );
         ~Popup();
-        void addText(const char* bytes);
         void draw(TextPrinter& printer, u32 currentFrame);
         float percentElapsed(u32 currentFrame);
         bool expired(u32 currentFrame);
-
-        // This allocates a new string!
-        char* createCStr();
 
         u32 startFrame;
         u8 id = 0;

@@ -31,10 +31,22 @@
       "command": "./move_build.sh",
       "options": {
         "cwd": "${workspaceFolder}",
+        "shell": {
+          "executable": "C:\\Program Files\\Git\\bin\\bash.exe"
+        }
       },
       "group": {
         "kind": "build",
         "isDefault": true,
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false,
+        "close": false
       }
     }
 ]

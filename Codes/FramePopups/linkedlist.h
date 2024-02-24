@@ -5,7 +5,7 @@
 #ifndef LINKEDLIST_H
 #define LINKEDLIST_H
 
-#include "stddef.h"
+#include <stddef.h>
 #include <Brawl/Message.h>
 
 #include "common.h"

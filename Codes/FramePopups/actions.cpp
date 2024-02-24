@@ -60,6 +60,22 @@ bool isAttackingAction(u16 action) {
     }
 }
 
+bool isDefinitelyActionable(u16 action) {
+    switch(action) {
+        case ACTION_WAIT:
+        case ACTION_DASH:
+        case ACTION_GUARD:
+        case ACTION_GUARDOFF:
+        case ACTION_GUARDON:
+        case ACTION_SQUAT:
+        case ACTION_SQUATWAIT:
+        case ACTION_FALL:
+        case ACTION_JUMPSQUAT:
+            return true;
+    }
+
+    return false;
+}
 
 const char* actionName(u16 action) {
     switch (action) {

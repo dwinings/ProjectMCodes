@@ -17,6 +17,14 @@ bool startsWith(const char* testStr, const char* prefix) {
     return true;
 }
 
+void PlayerData::resetTargeting() {
+    this->attackingAction = -1;
+    this->attackTarget = nullptr;
+    this->becameActionableOnFrame = -1;
+    this->didConnectAttack = false;
+    this->advantageBonusCounter = 0;
+}
+
 
 int PlayerData::debugStr(char* buffer) {
     // OSReport("buffer: 0x%X\n", buffer);

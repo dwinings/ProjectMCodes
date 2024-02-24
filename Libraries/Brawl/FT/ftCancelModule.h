@@ -10,8 +10,11 @@ struct ftCancelModule {
     int unableCancelStatus();
     void enableCancelTransitionGroup(int groupID);
 
-    char _spacer[0x38];
-    bool canCancelAttack;
+    char _spacer[0x34];
+    int unknown0;
+
+    /* I think these are the 4 transition groups, I've only seen 0 and 2 used. */
+    bool cancelGroups[4];
 };
 
 #define _unableCancelStatus_ftCancelModule ((int (*)(ftCancelModule* self)) 0x8084bd74)

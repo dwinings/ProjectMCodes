@@ -1,9 +1,11 @@
 #ifndef WISP_PLAYERDATA_H
 #define WISP_PLAYERDATA_H
 
-#include "CLibs/cstring.h"
-#include "Memory.h"
-#include "stddef.h"
+#include <CLibs/cstring.h>
+#include <Memory.h>
+#include <stddef.h>
+
+#include "actions.h"
 #include "common.h"
 
 bool startsWith(const char* testStr, const char* prefix);
@@ -32,19 +34,23 @@ struct PlayerData {
     public:
         u16 maxHitstun = 0;
         u16 maxShieldstun = 0;
-
+        u8 playerNumber;
 
         /* Stuff for on-shield targeting bookkeeping*/
         PlayerData* attackTarget = nullptr;
         bool didConnectAttack = 0;
+        char advantageBonusCounter = 0;
         u32 becameActionableOnFrame = -1;
+        u16 attackingAction = -1;
         /*******/
 
         /* Swapped every frame */
         PlayerDataOnFrame* prev = &_f1;
         PlayerDataOnFrame* current = &_f2;
 
+        void resetTargeting();
         inline bool didReceiveHitstun();
+        inline bool didReceiveShieldstun();
         inline bool didBecomeActionable();
         inline bool didEnableCancel();
         inline bool didActionChange();
@@ -73,7 +79,11 @@ inline bool PlayerData::didEnterShield() {
 
 inline bool PlayerData::didReceiveHitstun() {
         return current->hitstun != 0 && (current->hitstun != prev->hitstun - 1);
-    };
+}
+
+inline bool PlayerData::didReceiveShieldstun() {
+        return current->shieldstun != 0 && (current->shieldstun != prev->shieldstun - 1);
+}
 
 inline bool PlayerData::didBecomeActionable() {
     return true;
@@ -84,7 +94,10 @@ inline bool PlayerData::didEnableCancel() {
 }
 
 inline bool PlayerData::didActionChange() {
-    return current->action != prev->action;
+    return (
+        (current->action != prev->action)
+        || current->currentFrame != (prev->currentFrame + 1)
+    );
 }
 
 inline bool PlayerData::didSubactionChange() {

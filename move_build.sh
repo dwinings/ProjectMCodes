@@ -2,14 +2,10 @@
 
 set -x
 
-pushd "/c/Users/Wisp/Desktop/P+ builds/Project+ v2.4.2 Netplay (Windows)/User/Wii"
-imdisk -a -m 'Q:' -v 1 -f "sd_debug.raw" -o rem
-popd
-rm -r '/q/Project+/codes'
-mkdir -p '/q/Project+/codes'
-cp build/Output/*  "/q/Project+/codes/"
-
-pushd '/q/Project+' || exit
+pushd ~/Documents/WiiSDSync/Project+ || exit
+rm -r 'codes'
+mkdir 'codes'
+cp ~/Code/ProjectMCodes/build/Output/*  "codes/"
 
 ./GCTRealMate.exe ./NETPLAY.txt <<EOF
 
@@ -19,5 +15,5 @@ EOF
 EOF
 popd
 
-sleep 1
-imdisk -D -m 'q:'
+cd ~/Code/ProjectMCodes
+cp build/Disassembly/Symbols.map "${HOME}/Documents/Dolphin Emulator/Maps/RSBE01.map"

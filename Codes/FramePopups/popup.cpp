@@ -1,4 +1,3 @@
-#include "draw.h"
 #include "popup.h"
 
 Popup::Popup(const char* text, u32 startFrame) {
@@ -16,7 +15,7 @@ void Popup::draw(TextPrinter& printer, u32 currentFrame) {
     // so on after this is called.
     if (!this->expired(currentFrame)) {
         printer.setup();
-        printer.setTextColor(textColor());
+        printer.setTextColor(COLOR_WHITE);
         printer.renderPre = true;
         Message* printerMsgObj = &(printer.message);
         printerMsgObj->fontScaleX = WISP_DEFAULT_FONT_SCALE_X;

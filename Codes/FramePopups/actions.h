@@ -207,7 +207,7 @@
 
 bool isAttackingAction(u16 action);
 bool isGotHitAction(u16 action);
-bool isActionableAction(u16 action);
+bool isDefinitelyActionable(u16 action);
 const char* actionName(u16 action);
 
 #endif
