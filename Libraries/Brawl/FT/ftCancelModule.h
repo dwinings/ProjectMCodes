@@ -5,6 +5,18 @@
 #ifndef PROJECTMCODES_FTCANCELMODULE_H
 #define PROJECTMCODES_FTCANCELMODULE_H
 
+typedef union {
+    unsigned short value;
+    struct {
+        /* I think these are the 4 transition groups, I've only seen 0 and 2 used. */
+        unsigned short cancelGroup1 : 1;
+        unsigned short cancelGroup2 : 1;
+        unsigned short cancelGroup3 : 1;
+        unsigned short cancelGroup4 : 1;
+        unsigned short unknown : 12;
+    }__attribute__((packed, aligned(2))) bits;
+} CancelGroups;
+
 struct ftCancelModule {
     int isEnableCancel();
     int unableCancelStatus();
@@ -13,8 +25,7 @@ struct ftCancelModule {
     char _spacer[0x34];
     int unknown0;
 
-    /* I think these are the 4 transition groups, I've only seen 0 and 2 used. */
-    bool cancelGroups[4];
+    CancelGroups cancelGroups;
 };
 
 #define _unableCancelStatus_ftCancelModule ((int (*)(ftCancelModule* self)) 0x8084bd74)
