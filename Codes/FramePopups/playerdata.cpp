@@ -21,7 +21,6 @@ void PlayerData::resetTargeting() {
     this->attackingAction = -1;
     this->attackTarget = nullptr;
     this->becameActionableOnFrame = -1;
-    this->didConnectAttack = false;
     this->advantageBonusCounter = 0;
 }
 
@@ -47,4 +46,13 @@ int PlayerData::debugStr(char* buffer) {
     f.shieldstun, maxShieldstun,
     (f.isShielding() ? 'T' : 'F')
     );
+}
+
+bool PlayerDataOnFrame::getLowRABit(u32 idx) {
+    if (idx >= 32) {
+        OSReport("WARNING: Asked for ra-bit that's too high.\n");
+        return false;
+    }
+
+    return 1 == ((this->lowRABits & (1 << idx)) >> idx);
 }

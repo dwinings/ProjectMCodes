@@ -38,57 +38,42 @@ extern "C" void checkMenuPaused(char* gfTaskSchedulerInst) {
 }
 
 void printRABools(const soWorkManageModuleImpl& workModule) {
-    auto RABoolArr = (*(bool (*)[workModule.RAVariables->bitsSize])workModule.RAVariables->bitVariables);
-    bool hasPrintedHeader = false;
+    auto RABoolArr = (*(u32 (*)[workModule.RAVariables->bitsSize])workModule.RAVariables->bitVariables);
+    u32 boolNum;
+    u32 chunk;
+    char boolVal;
+
+    OSReport("Player 0 RA bools (%x): ", RABoolArr);
     for (int i = 0; i < workModule.RAVariables->bitsSize; i++) {
-        char byte = RABoolArr[i];
-        for (int j = 0; j < 8; j++) {
-            char val = (byte & (0x1 << j)) >> j;
-            int boolNum = (i*8) + j;
-            if (val != 0){
-                if (hasPrintedHeader == false) {
-                    OSReport("Player 0 RA bools: \n");
-                    hasPrintedHeader = true;
-                }
-                OSReport("   bit %d: %d\n", boolNum, val);
+        chunk = RABoolArr[i];
+        for (int j = 0; j < (sizeof(boolNum)*8 - 1); j++) {
+            boolNum = (i*sizeof(boolNum)) + (sizeof(boolNum)-j);
+            boolVal = (chunk & (0x1 << j)) >> j;
+            OSReport("%d", boolVal);
+
+            if ((j % 8) == 7) {
+                OSReport(" ");
             }
-
         }
+        OSReport("| ");
     }
-}
-
-void printLABools(const soWorkManageModuleImpl& workModule) {
-    auto LABoolArr = (*(bool (*)[workModule.LAVariables->bitsSize])workModule.LAVariables->bitVariables);
-    bool hasPrintedHeader = false;
-    for (int i = 0; i < workModule.LAVariables->bitsSize; i++) {
-        char byte = LABoolArr[i];
-        for (int j = 0; j < 8; j++) {
-            char val = (byte & (0x1 << j)) >> j;
-            int boolNum = (i*8) + j;
-            if (val != 0){
-                if (hasPrintedHeader == false) {
-                    OSReport("Player 0 LA bools: \n");
-                    hasPrintedHeader = true;
-                }
-                OSReport("   bit %d: %d\n", boolNum, val);
-            }
-
-        }
-    }
+    OSReport("\n");
 }
 
 bool getRABit(const soWorkManageModuleImpl& workModule, u32 idx) {
     auto RABitsCnt = workModule.RAVariables->bitsSize;
-    auto RABitsAry = (*(char (*)[RABitsCnt])workModule.RAVariables->bitVariables);
+    auto RABitsAry = (*(u32 (*)[RABitsCnt])workModule.RAVariables->bitVariables);
 
-    if (!(idx < RABitsCnt*8)) {
+    printRABools(workModule);
+
+    if (!(idx < RABitsCnt*8*4)) {
         OSReport("Warning: asked for invalid RA bit %d from workModule %x.\n", idx, (void*)&workModule);
         return false;
     }
 
-    char bitsChunk = RABitsAry[idx / 8];
-    char remainder = idx % 8;
-    if (((bitsChunk << remainder) >> remainder) == 0) {
+    u32 bitsChunk = RABitsAry[idx / 32];
+    char remainder = idx % 32;
+    if ((bitsChunk & (1 << remainder) >> remainder) == 0) {
         return false;
     } else {
         return true;
@@ -169,18 +154,6 @@ void handleInput() {
         wispLineHeightMultiplier = max(0, wispLineHeightMultiplier - 1);
         return;
     }
-}
-
-INJECTION("enable_cancel_transition_group", 0x8084b830, R"(
-    SAVE_REGS
-    li r3, 0
-    or r3, r26, r26
-    bl afterEnableCancelTransitionGroup
-    RESTORE_REGS
-    blr
-)");
-extern "C" void afterEnableCancelTransitionGroup(ftCancelModule* cancelModule) {
-    OSReport("hello. Cancel Module: 0x%x", (void*)cancelModule);
 }
 
 // calls our function
@@ -311,18 +284,10 @@ void gatherData(u8 player) {
         // debugWorkModule(*workModule);
         auto RABasicsArr = (*(int(*)[workModule->RAVariables->basicsSize])workModule->RAVariables->basics);
         auto RAFloatArr = (*(int(*)[workModule->RAVariables->floatsSize])workModule->RAVariables->floats);
-        auto RABoolArr = (*(bool (*)[workModule->RAVariables->bitsSize])workModule->RAVariables->bitVariables);
+        auto RABoolArr = (*(u32 (*)[workModule->RAVariables->bitsSize])workModule->RAVariables->bitVariables);
         auto LABasicsArr = (*(int(*)[workModule->LAVariables->basicsSize])workModule->LAVariables->basics);
         auto LAFloatArr = (*(float(*)[workModule->LAVariables->floatsSize])workModule->LAVariables->floats);
-        auto LABoolArr = (*(bool (*)[workModule->LAVariables->bitsSize])workModule->LAVariables->bitVariables);
-
-        if (playerNumber == 0) {
-            /*
-            printRABools(*workModule);
-            printLABools(*workModule);
-            */
-        }
-
+        auto LABoolArr = (*(u32 (*)[workModule->LAVariables->bitsSize])workModule->LAVariables->bitVariables);
 
         // float shieldValue = LAFloatArr[0x3];
 
@@ -366,13 +331,8 @@ void gatherData(u8 player) {
         } else {
             playerData.maxHitstun = 0;
         }
-  
-        /*
-        Doesn't trigger
-        if (player == 0 && playerData.attackTarget != nullptr && getRABit(*workModule, 0x10)) {
-            breakpoint();
-        }
-        */
+
+        currentData.lowRABits = RABoolArr[0];
     }
 
 
@@ -422,7 +382,7 @@ void gatherData(u8 player) {
 void resolveAttackTarget(u8 playerIdx) {
     PlayerData& player = allPlayerData[playerIdx];
     // False most of the time, so this isn't as slow as it looks.
-    if (player.didConnectAttack != false && player.attackTarget == nullptr) {
+    if (player.didConnectAttack != false) {
         for (char otherIdx = 0; otherIdx < WISP_MAX_PLAYERS; otherIdx++) {
             if (playerIdx == otherIdx) {
                 continue;
@@ -430,6 +390,9 @@ void resolveAttackTarget(u8 playerIdx) {
 
             auto& otherPlayer = allPlayerData[otherIdx];
             if (otherPlayer.didReceiveHitstun() || otherPlayer.didReceiveShieldstun()){
+                player.resetTargeting();
+                otherPlayer.resetTargeting();
+
                 OSReport("Setting Attacker %d -> Defender %d\n", player.playerNumber, otherPlayer.playerNumber);
                 player.attackTarget = &(otherPlayer);
                 player.attackingAction = player.current->action;
@@ -439,6 +402,67 @@ void resolveAttackTarget(u8 playerIdx) {
     }
 }
 
+bool resolvePlayerActionable(PlayerData& player ) {
+    if (player.becameActionableOnFrame != -1) {
+        return true; // already became actionable..
+    }
+
+    if (isDefinitelyActionable(player.current->action)) {
+        OSReport("Attacker %d became actionable.\n  - Prev Act/Subact: %s/%s\n  - Cur Act/Subact: %s/%s\n",
+            player.playerNumber,
+            actionName(player.prev->action), player.prev->subactionName,
+            actionName(player.current->action), player.current->subactionName
+        );
+        player.becameActionableOnFrame = frameCounter;
+        return true;
+    }
+
+    if (player.current->canCancel) {
+        OSReport("Attacker %d became actionable through the cancel module.\n", player.playerNumber);
+        player.becameActionableOnFrame = frameCounter;
+        return true;
+    }
+
+    if (player.current->getLowRABit(RA_BIT_ENABLE_ACTION_TRANSITION)) {
+        OSReport("Attacker %d became actionable through the EnableActionTransition RA-Bit.\n", player.playerNumber);
+        player.becameActionableOnFrame = frameCounter;
+        return true;
+    }
+
+    return false;
+}
+
+bool resolveTargetActionable(PlayerData& target) {
+    if (target.becameActionableOnFrame != -1) {
+        return true; // already happened.
+    }
+
+    if (isDefinitelyActionable(target.current->action)) {
+            OSReport("target %d became actionable.\n  - Prev Act/Subact: %s/%s\n  - Cur Act/Subact: %s/%s\n", 
+                target.playerNumber,
+                actionName(target.prev->action), target.prev->subactionName,
+                actionName(target.current->action), target.current->subactionName
+            );
+            target.becameActionableOnFrame = frameCounter;
+            return true;
+    }
+
+    if (target.current->hitstun == 0 && target.current->shieldstun == 0) {
+        OSReport("Target %d became actionable because hitstun ran out.\n", target.playerNumber);
+        target.becameActionableOnFrame = frameCounter;
+        return true;
+
+    }
+
+    if (target.current->getLowRABit(RA_BIT_ENABLE_ACTION_TRANSITION)) {
+        OSReport("Target %d became actionable through the EnableActionTransition RA-Bit.\n", target.playerNumber);
+        target.becameActionableOnFrame = frameCounter;
+        return true;
+    }
+
+    return false;
+}
+
 void checkAttackTargetActionable(u8 playerNum) {
     PlayerData& player = allPlayerData[playerNum];
 
@@ -446,56 +470,28 @@ void checkAttackTargetActionable(u8 playerNum) {
     if (player.attackTarget != nullptr){
         PlayerData& target = *(player.attackTarget);
 
-        bool playerIsActionable = (
-            isDefinitelyActionable(player.current->action)
-            || player.current->canCancel
-        );
+        bool targetIsActionable = resolveTargetActionable(target);
+        bool playerIsActionable = resolvePlayerActionable(player);
 
-        bool targetIsActionable = (
-            (target.current->hitstun == 0 && target.current->shieldstun == 0) 
-            || isDefinitelyActionable(target.current->action)
-        );
-
-        if (playerIsActionable && player.becameActionableOnFrame == -1) {
-            OSReport("Attacker %d became actionable.\n  - Prev Act/Subact: %s/%s\n  - Cur Act/Subact: %s/%s\n", 
-                player.playerNumber,
-                actionName(player.prev->action), player.prev->subactionName,
-                actionName(player.current->action), player.current->subactionName
-            );
-            player.becameActionableOnFrame = frameCounter;
-        }
-
-        if (targetIsActionable && target.becameActionableOnFrame == -1) {
-            OSReport("target %d became actionable.\n  - Prev Act/Subact: %s/%s\n  - Cur Act/Subact: %s/%s\n", 
-                target.playerNumber,
-                actionName(target.prev->action), target.prev->subactionName,
-                actionName(target.current->action), target.current->subactionName
-            );
-            target.becameActionableOnFrame = frameCounter;
-        }
 
         if (playerIsActionable && targetIsActionable) {
-            if (target.advantageBonusCounter >= WISP_ADVANTAGE_LENIENCY) {
-                /* POP UP TIME! */
-                short int advantage = target.becameActionableOnFrame - player.becameActionableOnFrame;
+            /* POP UP TIME! */
+            short int advantage = target.becameActionableOnFrame - player.becameActionableOnFrame;
 
-                /* Lots of weird edge cases where the ending doesn't register, such as dying or teching. */
-                /* > 30 frames is general judgeable with a human eye anyway. */
-                if (advantage > -30 && advantage < 30) {
-                    OSReport("Displaying popup for attacker: %d\n", player.playerNumber);
-                    snprintf(strManipBuffer, WISP_STR_MANIP_SIZE, "Advantage: %d\n", advantage);
-                    OSReport(strManipBuffer);
-                    Popup& popup = *(new Popup(strManipBuffer, frameCounter));
-                    popup.coords = getHpPopupBoxCoords(player.playerNumber);
-                    popup.durationSecs = 3;
-                    playerPopups[playerNum].append(popup);
-                }
-
-                player.resetTargeting();
-                target.resetTargeting();
-            } else {
-                target.advantageBonusCounter += 1;
+            /* Lots of weird edge cases where the ending doesn't register, such as dying or teching. */
+            /* > 30 frames is general judgeable with a human eye anyway. */
+            if (advantage > -30 && advantage < 30) {
+                OSReport("Displaying popup for attacker: %d\n", player.playerNumber);
+                snprintf(strManipBuffer, WISP_STR_MANIP_SIZE, "Advantage: %d\n", advantage);
+                OSReport(strManipBuffer);
+                Popup& popup = *(new Popup(strManipBuffer, frameCounter));
+                popup.coords = getHpPopupBoxCoords(player.playerNumber);
+                popup.durationSecs = 3;
+                playerPopups[playerNum].append(popup);
             }
+
+            player.resetTargeting();
+            target.resetTargeting();
         }
     }
 }

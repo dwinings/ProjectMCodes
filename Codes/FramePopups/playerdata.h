@@ -18,12 +18,15 @@ struct PlayerDataOnFrame {
     float subactionFrame = 0;
     float subactionEndFrame = 0;
 
+    u32 lowRABits = 0;
     u16 currentFrame = 0;
     u16 totalFrames = 0;
     u16 hitstun = 0;
     u16 shieldstun = 0;
     bool canCancel = 0;
+    bool didConnectAttack = false;
 
+    bool getLowRABit(u32 idx);
     inline bool isShielding();
 
 };
@@ -38,7 +41,7 @@ struct PlayerData {
 
         /* Stuff for on-shield targeting bookkeeping*/
         PlayerData* attackTarget = nullptr;
-        bool didConnectAttack = 0;
+        bool didConnectAttack = false;
         char advantageBonusCounter = 0;
         u32 becameActionableOnFrame = -1;
         u16 attackingAction = -1;
@@ -63,6 +66,7 @@ struct PlayerData {
         PlayerDataOnFrame _f2;
 };
 
+
 inline bool PlayerData::didEnterShield() {
     if (didSubactionChange()) {
         if (
@@ -78,11 +82,11 @@ inline bool PlayerData::didEnterShield() {
 }
 
 inline bool PlayerData::didReceiveHitstun() {
-        return current->hitstun != 0 && (current->hitstun != prev->hitstun - 1);
+        return current->hitstun != 0 && (current->hitstun > prev->hitstun);
 }
 
 inline bool PlayerData::didReceiveShieldstun() {
-        return current->shieldstun != 0 && (current->shieldstun != prev->shieldstun - 1);
+        return current->shieldstun != 0 && (current->shieldstun > prev->shieldstun);
 }
 
 inline bool PlayerData::didBecomeActionable() {

@@ -22,6 +22,8 @@
 #define sprintf ((int (*)(char* buffer, const char* format, ...)) 0x803f89fc)
 #define snprintf ((int (*)(char* buffer, size_t maxSize, const char* format, ...)) 0x803f8924)
 
+#define RA_BIT_ENABLE_ACTION_TRANSITION 0x10
+
 
 typedef struct Coord2D {
     int x = 0;
