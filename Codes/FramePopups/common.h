@@ -30,6 +30,11 @@ typedef struct Coord2D {
     int y = 0;
 } Coord2D;
 
+typedef struct Coord2DF {
+    float x = 0;
+    float y = 0;
+} Coord2DF;
+
 enum SCENE_TYPE {
     MAIN_MENU = 0x1,
     HRC_CSS = 0x2,
@@ -42,5 +47,9 @@ enum SCENE_TYPE {
     UNKNOWN=0xFF
 };
 
+extern u32 frameCounter;
+extern char strManipBuffer[WISP_STR_MANIP_SIZE];
 
+int max(int a, int b);
+float fmax(float a, float b);
 #endif

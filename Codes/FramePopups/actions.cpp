@@ -479,3 +479,21 @@ const char* actionName(u16 action) {
         return "UNLABELED";
     }
 }
+
+bool isEATBitExclusion(CHAR_ID charKind, int actionId){
+    switch(charKind) {
+        case (CHAR_ID::Szerosuit):
+            switch(actionId) {
+                // 117 and 118 are her uncharged/charged shot release actions.
+                // They have action transition enabled the whole time, but she's not actionable.
+                case ACTION_SPECIALN:
+                case 0x117:
+                case 0x118:
+                    return true;
+                default:
+                    return false;
+            }
+        default:
+            return false;
+    }
+}

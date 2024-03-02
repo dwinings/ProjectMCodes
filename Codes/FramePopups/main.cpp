@@ -2,28 +2,6 @@
 #include "main.h"
 
 
-// show menu / pause game execution
-bool paused = false;
-bool visible = false;
-int wispMenuXPos = 200;
-int wispMenuYPos = 50;
-u8 wispAlpha = 255;
-
-char strManipBuffer[WISP_STR_MANIP_SIZE]; 
-float wispFontScaleX = 0.45;
-float wispFontScaleY = 0.7;
-int wispLineHeightMultiplier = 20;
-unsigned int frameCounter = 0;
-
-struct PlayerData allPlayerData[WISP_MAX_PLAYERS] = {};
-linkedlist<Popup> playerPopups[WISP_MAX_PLAYERS] = {
-    linkedlist<Popup>(),
-    linkedlist<Popup>(),
-    linkedlist<Popup>(),
-    linkedlist<Popup>()
-};
-
-
 // responsible for pausing exeuction of the game itself while the code menu is up
 INJECTION("TOGGLE_PAUSE", 0x8002E5B0, R"(
     mr r3, r25
@@ -33,7 +11,7 @@ INJECTION("TOGGLE_PAUSE", 0x8002E5B0, R"(
 
 extern "C" void checkMenuPaused(char* gfTaskSchedulerInst) {
     // OSReport("Visible: %s, paused: %s\n", visible ? "T" : "F", paused ? "T" : "F");
-    if (paused && visible) { gfTaskSchedulerInst[0xB] |= 0x8; }
+    if (globalWispMenu.gamePaused && globalWispMenu.visible) { gfTaskSchedulerInst[0xB] |= 0x8; }
     else { gfTaskSchedulerInst[0xB] &= ~0x8; }
 }
 
@@ -43,7 +21,7 @@ void printRABools(const soWorkManageModuleImpl& workModule) {
     u32 chunk;
     char boolVal;
 
-    OSReport("Player 0 RA bools (%x): ", RABoolArr);
+    OSReport("RA bools (%x): ", RABoolArr);
     for (int i = 0; i < workModule.RAVariables->bitsSize; i++) {
         chunk = RABoolArr[i];
         for (int j = 0; j < (sizeof(boolNum)*8 - 1); j++) {
@@ -55,7 +33,7 @@ void printRABools(const soWorkManageModuleImpl& workModule) {
                 OSReport(" ");
             }
         }
-        OSReport("| ");
+        OSReport("  |  ");
     }
     OSReport("\n");
 }
@@ -90,9 +68,9 @@ void printMessage(char const* msg, float xPos, float yPos, GXColor color = COLOR
     printer.setTextColor(color);
     printer.renderPre = true;
     Message* printerMsgObj = &(printer.message);
-    printer.lineHeight = wispFontScaleY * wispLineHeightMultiplier;
-    printerMsgObj->fontScaleY = wispFontScaleY;
-    printerMsgObj->fontScaleX = wispFontScaleX;
+    printer.lineHeight = globalWispMenu.lineHeight();
+    printerMsgObj->fontScaleY = globalWispMenu.fontScale.y;
+    printerMsgObj->fontScaleX = globalWispMenu.fontScale.x;
     printerMsgObj->xPos = xPos;
     printerMsgObj->yPos = yPos;
     printerMsgObj->zPos = 0;
@@ -101,59 +79,6 @@ void printMessage(char const* msg, float xPos, float yPos, GXColor color = COLOR
     printer.startBoundingBox();
     printer.print(msg);
     printer.saveBoundingBox(printer.bboxIdx, COLOR_TRANSPARENT_GREY, WISP_PRINTER_PADDING);
-}
-
-void handleInput() {
-    PADButtons btn;
-    btn.bits = PREVIOUS_PADS[0].button.bits | PREVIOUS_PADS[1].button.bits | PREVIOUS_PADS[2].button.bits | PREVIOUS_PADS[3].button.bits;
-
-
-    if (btn.L && btn.R && btn.UpDPad) {
-        wispAlpha += 1;
-        return;
-    }
-
-    if (btn.L && btn.LeftDPad) {
-        wispMenuXPos = max(0, wispMenuXPos - 1);
-        return;
-    }
-    if (btn.L && btn.RightDPad) {
-        wispMenuXPos = wispMenuXPos + 1;
-        return;
-    }
-    if (btn.L && btn.DownDPad) {
-        wispMenuYPos = max(0, wispMenuYPos - 1);
-        return;
-    }
-    if (btn.L && btn.UpDPad) {
-        wispMenuYPos += 1;
-        return;
-    }
-
-    if (btn.R && btn.LeftDPad) {
-        wispFontScaleX = fmax(0, wispFontScaleX - WISP_FONT_SCALE_INC);
-        return;
-    }
-    if (btn.R && btn.RightDPad) {
-        wispFontScaleX += WISP_FONT_SCALE_INC;
-        return;
-    }
-    if (btn.R && btn.DownDPad) {
-        wispFontScaleY = fmax(0, wispFontScaleY - WISP_FONT_SCALE_INC);
-        return;
-    }
-    if (btn.R && btn.UpDPad) {
-        wispFontScaleY += WISP_FONT_SCALE_INC;
-        return;
-    }
-    if (btn.R && btn.A) {
-        wispLineHeightMultiplier += 1;
-        return;
-    }
-    if (btn.R && btn.B) {
-        wispLineHeightMultiplier = max(0, wispLineHeightMultiplier - 1);
-        return;
-    }
 }
 
 // calls our function
@@ -170,24 +95,33 @@ extern "C" void updatePreFrame() {
         frameCounter += 1;
         renderables.renderPre();
 
-        // Lazy debounce.
-        if (frameCounter % 3 == 0) {
-            handleInput();
-        }
+        globalWispMenu.handleInput();
 
         int fighterCount;
         fighterCount = FIGHTER_MANAGER->getEntryCount();
-        u8 player = 0;
-        for (player = 0; player < fighterCount; player++) {
-            gatherData(player);
+        u8 idx = 0;
+        for (idx = 0; idx < fighterCount; idx++) {
+            gatherData(idx);
         }
 
-        for (player = 0; player < fighterCount; player++) {
-            resolveAttackTarget(player);
+        for(idx = 0; idx < fighterCount; idx++) {
+            auto& playerData = allPlayerData[idx];
+
+            if (playerData.didActionChange() && isAttackingAction(playerData.action())) {
+                playerData.didStartAttack = true;
+            }
+
+            if (playerData.didStartAttack) {
+                playerData.resolvePlayerActionable();
+            }
         }
 
-        for (player = 0; player < fighterCount; player++) {
-            checkAttackTargetActionable(player);
+        for (idx = 0; idx < fighterCount; idx++) {
+            resolveAttackTarget(idx);
+        }
+
+        for (idx = 0; idx < fighterCount; idx++) {
+            checkAttackTargetActionable(idx);
         }
 
         drawAllPopups();
@@ -245,10 +179,10 @@ void gatherData(u8 player) {
 
     EntryID entryId = FIGHTER_MANAGER->getEntryIdFromIndex(player);
     Fighter* fighter = FIGHTER_MANAGER->getFighter(entryId, 0);
+    playerData.charKind = (CHAR_ID)(fighter->getFtKind());
     u8 playerNumber = FIGHTER_MANAGER->getPlayerNo(entryId);
 
     allPlayerData[player].playerNumber = playerNumber;
-    int character = fighter->getFtKind();
 
     auto workModule = fighter->modules->workModule;
     auto statusModule = fighter->modules->statusModule;
@@ -261,7 +195,7 @@ void gatherData(u8 player) {
         "Player: %d\n"
         "  char type: 0x%X\n" 
         "  entryId: 0x%X\n"
-        "  figher addr: 0x%X\n"
+        "  fighter addr: 0x%X\n"
         ,
         player, character, entryId, fighter
     );
@@ -322,16 +256,14 @@ void gatherData(u8 player) {
                 playerData.becameActionableOnFrame = -1;
                 playerData.advantageBonusCounter = 0;
             }
-
-            /*
-            OSReport("Player %d hitstun: %d/%d\n",
-                playerData.playerNumber, remainingHitstun, playerData.maxHitstun
-            );
-            */
         } else {
             playerData.maxHitstun = 0;
         }
 
+        if (playerData.playerNumber == 0) {
+            OSReport("[Action 0x%x %s] ", currentData.action, actionName(currentData.action));
+            printRABools(*workModule);
+        }
         currentData.lowRABits = RABoolArr[0];
     }
 
@@ -345,36 +277,23 @@ void gatherData(u8 player) {
             // OSReport("Animation Resource: 0x%X\n", animationResource);
             if (animationResource == nullptr) {
                 strcpy(playerData.current->subactionName, "UNKNOWN", WISP_ACTION_NAME_LEN);
-                playerData.current->totalFrames = -1;
+                playerData.current->actionTotalFrames = -1;
             } else {
                 playerData.current->subactionFrame = motionModule->getFrame();
 
                 // do these ever differ, except by 1?
-                playerData.current->subactionEndFrame = motionModule->getEndFrame();
-                playerData.current->totalFrames = animationResource->animLength;
+                playerData.current->subactionTotalFrames = motionModule->getEndFrame();
+                playerData.current->actionTotalFrames = animationResource->animLength;
                 strcpy(playerData.current->subactionName, animationResource->getString(), WISP_ACTION_NAME_LEN);
             }
 
-            playerData.current->currentFrame = (u32)animationData.animFrame;
+            playerData.current->actionFrame = (u32)animationData.animFrame;
         }
 
     }
     if (cancelModule != nullptr) {
         u32 isEnableCancel = cancelModule->isEnableCancel();
-        if (playerNumber == 0) {
-            /*
-            breakpoint();
-            snprintf(strManipBuffer, WISP_STR_MANIP_SIZE, 
-                "CancelModule 0x%x, Cancels: %c %c %c %c \n",
-                (void*)cancelModule,
-                (cancelModule->cancelGroups.bits.cancelGroup1 ? 'T' : 'F'),
-                (cancelModule->cancelGroups.bits.cancelGroup2 ? 'T' : 'F'),
-                (cancelModule->cancelGroups.bits.cancelGroup3 ? 'T' : 'F'),
-                (cancelModule->cancelGroups.bits.cancelGroup4 ? 'T' : 'F')
-            );
-            printMessage(strManipBuffer, wispMenuXPos, wispMenuYPos, COLOR_WHITE);
-            */
-        }
+        // TODO: investigate cancel groups here.
         currentData.canCancel = (bool)isEnableCancel;
     }
 }
@@ -402,67 +321,6 @@ void resolveAttackTarget(u8 playerIdx) {
     }
 }
 
-bool resolvePlayerActionable(PlayerData& player ) {
-    if (player.becameActionableOnFrame != -1) {
-        return true; // already became actionable..
-    }
-
-    if (isDefinitelyActionable(player.current->action)) {
-        OSReport("Attacker %d became actionable.\n  - Prev Act/Subact: %s/%s\n  - Cur Act/Subact: %s/%s\n",
-            player.playerNumber,
-            actionName(player.prev->action), player.prev->subactionName,
-            actionName(player.current->action), player.current->subactionName
-        );
-        player.becameActionableOnFrame = frameCounter;
-        return true;
-    }
-
-    if (player.current->canCancel) {
-        OSReport("Attacker %d became actionable through the cancel module.\n", player.playerNumber);
-        player.becameActionableOnFrame = frameCounter;
-        return true;
-    }
-
-    if (player.current->getLowRABit(RA_BIT_ENABLE_ACTION_TRANSITION)) {
-        OSReport("Attacker %d became actionable through the EnableActionTransition RA-Bit.\n", player.playerNumber);
-        player.becameActionableOnFrame = frameCounter;
-        return true;
-    }
-
-    return false;
-}
-
-bool resolveTargetActionable(PlayerData& target) {
-    if (target.becameActionableOnFrame != -1) {
-        return true; // already happened.
-    }
-
-    if (isDefinitelyActionable(target.current->action)) {
-            OSReport("target %d became actionable.\n  - Prev Act/Subact: %s/%s\n  - Cur Act/Subact: %s/%s\n", 
-                target.playerNumber,
-                actionName(target.prev->action), target.prev->subactionName,
-                actionName(target.current->action), target.current->subactionName
-            );
-            target.becameActionableOnFrame = frameCounter;
-            return true;
-    }
-
-    if (target.current->hitstun == 0 && target.current->shieldstun == 0) {
-        OSReport("Target %d became actionable because hitstun ran out.\n", target.playerNumber);
-        target.becameActionableOnFrame = frameCounter;
-        return true;
-
-    }
-
-    if (target.current->getLowRABit(RA_BIT_ENABLE_ACTION_TRANSITION)) {
-        OSReport("Target %d became actionable through the EnableActionTransition RA-Bit.\n", target.playerNumber);
-        target.becameActionableOnFrame = frameCounter;
-        return true;
-    }
-
-    return false;
-}
-
 void checkAttackTargetActionable(u8 playerNum) {
     PlayerData& player = allPlayerData[playerNum];
 
@@ -470,8 +328,8 @@ void checkAttackTargetActionable(u8 playerNum) {
     if (player.attackTarget != nullptr){
         PlayerData& target = *(player.attackTarget);
 
-        bool targetIsActionable = resolveTargetActionable(target);
-        bool playerIsActionable = resolvePlayerActionable(player);
+        bool targetIsActionable = target.resolveTargetActionable();
+        bool playerIsActionable = player.resolvePlayerActionable();
 
 
         if (playerIsActionable && targetIsActionable) {
@@ -565,16 +423,6 @@ Coord2D getHpPopupBoxCoords(int playerNum) {
     // TODO: Other numbers of players.
 
     return Coord2D{};
-}
-
-float fmax(float x1, float x2) {
-    if (x1 > x2) return x1;
-    return x2;
-}
-
-int max(int x1, int x2) {
-    if (x1 > x2) return x1;
-    return x2;
 }
 
 void drawAllPopups() {

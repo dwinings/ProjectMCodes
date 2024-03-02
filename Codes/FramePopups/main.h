@@ -18,11 +18,13 @@
 
 #include <Wii/PAD/PADStatus.h>
 
-#include "actions.h"
-#include "common.h"
-#include "playerdata.h"
-#include "popup.h"
-#include "linkedlist.h"
+#include "./common.h"
+
+#include "./actions.h"
+#include "./playerdata.h"
+#include "./popup.h"
+#include "./linkedlist.h"
+#include "./ui.h"
 
 #define WISP_ADVANTAGE_LENIENCY 3
 
