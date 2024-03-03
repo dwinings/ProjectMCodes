@@ -11,7 +11,7 @@ INJECTION("TOGGLE_PAUSE", 0x8002E5B0, R"(
 
 extern "C" void checkMenuPaused(char* gfTaskSchedulerInst) {
     // OSReport("Visible: %s, paused: %s\n", visible ? "T" : "F", paused ? "T" : "F");
-    if (globalWispMenu.gamePaused && globalWispMenu.visible) { gfTaskSchedulerInst[0xB] |= 0x8; }
+    if (globalWispMenu.paused && globalWispMenu.visible) { gfTaskSchedulerInst[0xB] |= 0x8; }
     else { gfTaskSchedulerInst[0xB] &= ~0x8; }
 }
 
@@ -42,7 +42,7 @@ bool getRABit(const soWorkManageModuleImpl& workModule, u32 idx) {
     auto RABitsCnt = workModule.RAVariables->bitsSize;
     auto RABitsAry = (*(u32 (*)[RABitsCnt])workModule.RAVariables->bitVariables);
 
-    printRABools(workModule);
+    // printRABools(workModule);
 
     if (!(idx < RABitsCnt*8*4)) {
         OSReport("Warning: asked for invalid RA bit %d from workModule %x.\n", idx, (void*)&workModule);
@@ -95,7 +95,15 @@ extern "C" void updatePreFrame() {
         frameCounter += 1;
         renderables.renderPre();
 
-        globalWispMenu.handleInput();
+        if (FIGHTER_MANAGER->getEntryCount() > 0) {
+            if (!globalWispMenu.initialized) {
+                globalWispMenu.init();
+            };
+
+            if (globalWispMenu.initialized) {
+                globalWispMenu.handleInput();
+            }
+        }
 
         int fighterCount;
         fighterCount = FIGHTER_MANAGER->getEntryCount();
@@ -124,6 +132,7 @@ extern "C" void updatePreFrame() {
             checkAttackTargetActionable(idx);
         }
 
+        globalWispMenu.render(printer, strManipBuffer, WISP_STR_MANIP_SIZE);
         drawAllPopups();
     }
 
@@ -261,8 +270,8 @@ void gatherData(u8 player) {
         }
 
         if (playerData.playerNumber == 0) {
-            OSReport("[Action 0x%x %s] ", currentData.action, actionName(currentData.action));
-            printRABools(*workModule);
+            //OSReport("[Action 0x%x %s] ", currentData.action, actionName(currentData.action));
+            // printRABools(*workModule);
         }
         currentData.lowRABits = RABoolArr[0];
     }
@@ -342,7 +351,7 @@ void checkAttackTargetActionable(u8 playerNum) {
                 OSReport("Displaying popup for attacker: %d\n", player.playerNumber);
                 snprintf(strManipBuffer, WISP_STR_MANIP_SIZE, "Advantage: %d\n", advantage);
                 OSReport(strManipBuffer);
-                Popup& popup = *(new Popup(strManipBuffer, frameCounter));
+                Popup& popup = *(new Popup(strManipBuffer));
                 popup.coords = getHpPopupBoxCoords(player.playerNumber);
                 popup.durationSecs = 3;
                 playerPopups[playerNum].append(popup);
@@ -433,13 +442,13 @@ void drawAllPopups() {
 
 
         while ((popup = itr.next()) != nullptr) {
-            if (popup->expired(frameCounter)) {
+            if (popup->expired()) {
                 itr.deleteHere();
                 delete popup;
             } else {
                 popup->coords = coords;
                 // OSReport("Set popup coords to %d,%d\n", coords.x, coords.y);
-                popup->draw(printer, frameCounter);
+                popup->draw(printer);
 
                 coords.y -= WISP_POPUP_VERTICAL_OFFSET;
             }

@@ -1,8 +1,11 @@
 #include "popup.h"
 
-Popup::Popup(const char* text, u32 startFrame) {
+extern u32 frameCounter;
+
+Popup::Popup(const char* text) {
     this->startFrame = startFrame;
     this->text = new char[strlen(text)];
+    this->startFrame = frameCounter;
     strcpy(this->text, text);
 }
 
@@ -10,10 +13,10 @@ Popup::~Popup() {
     delete[] this->text;
 }
 
-void Popup::draw(TextPrinter& printer, u32 currentFrame) {
+void Popup::draw(TextPrinter& printer) {
     // This will mess with the printer settings, you will likely have to reset draw mode and
     // so on after this is called.
-    if (!this->expired(currentFrame)) {
+    if (!this->expired()) {
         printer.setup();
         printer.setTextColor(COLOR_WHITE);
         printer.renderPre = true;
@@ -34,7 +37,7 @@ void Popup::draw(TextPrinter& printer, u32 currentFrame) {
         // Gradient from yellow to red based on progress.
         GXColor progressColor = 0;
         progressColor.red = 255;
-        float elapsed = this->percentElapsed(currentFrame);
+        float elapsed = this->percentElapsed();
         progressColor.green = ((1 - elapsed) * 255);
         progressColor.blue = 0;
         progressColor.alpha = 255;
@@ -62,7 +65,7 @@ void Popup::draw(TextPrinter& printer, u32 currentFrame) {
             ((printerMsgObj->yPos + printer.lineHeight + WISP_PRINTER_PADDING) * multiplier) - (7*multiplier),
             (printerMsgObj->yPos + printer.lineHeight + WISP_PRINTER_PADDING) * multiplier,
             left,
-            right - (this->percentElapsed(currentFrame)*lrdelta),
+            right - (this->percentElapsed()*lrdelta),
             printer.is2D
         };
 
@@ -74,11 +77,11 @@ void Popup::draw(TextPrinter& printer, u32 currentFrame) {
     }
 }
 
-float Popup::percentElapsed(u32 currentFrame) {
-    u32 framesElapsed = currentFrame - this->startFrame;
+float Popup::percentElapsed() {
+    u32 framesElapsed = frameCounter - this->startFrame;
     return framesElapsed / (float)(this->durationSecs * this->fps);
 }
 
-bool Popup::expired(u32 currentFrame) {
-    return (this->percentElapsed(currentFrame) >= 1);
+bool Popup::expired() {
+    return (this->percentElapsed() >= 1);
 }

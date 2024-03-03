@@ -1,6 +1,7 @@
 #ifndef WISP_COMMON_H
 #define WISP_COMMON_H
 
+#include <stddef.h>
 #include <Wii/GX/GX.h>
 
 /* Static value defines */

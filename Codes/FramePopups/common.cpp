@@ -1,5 +1,4 @@
 #include "./common.h"
-
 /********/
 // Universal Externs. This is imported by common.h so it is usable throughout.
 

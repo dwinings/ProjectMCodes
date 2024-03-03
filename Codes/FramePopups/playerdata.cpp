@@ -50,7 +50,7 @@ int PlayerData::debugStr(char* buffer) {
     );
 }
 
-bool PlayerDataOnFrame::getLowRABit(u32 idx) {
+bool PlayerDataOnFrame::getLowRABit(u32 idx) const {
     if (idx >= 32) {
         OSReport("WARNING: Asked for ra-bit that's too high.\n");
         return false;

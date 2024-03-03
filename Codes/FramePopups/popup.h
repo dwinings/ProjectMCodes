@@ -11,14 +11,11 @@
 
 class Popup {
     public:
-        Popup(
-            const char* text, 
-            u32 startFrame
-        );
+        Popup(const char* text);
         ~Popup();
-        void draw(TextPrinter& printer, u32 currentFrame);
-        float percentElapsed(u32 currentFrame);
-        bool expired(u32 currentFrame);
+        void draw(TextPrinter& printer);
+        float percentElapsed();
+        bool expired();
 
         u32 startFrame;
         u8 id = 0;
