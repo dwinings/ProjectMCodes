@@ -16,3 +16,9 @@ int max(int x1, int x2) {
     if (x1 > x2) return x1;
     return x2;
 }
+
+GXColor applyAlpha(GXColor input, u8 alpha) {
+    float alphaRatio = ((float)alpha / 255);
+    input.alpha *= (float)alpha/(float)255;
+    return input;
+}

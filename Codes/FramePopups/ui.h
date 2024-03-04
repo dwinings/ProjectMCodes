@@ -20,7 +20,6 @@
 //   void render(TextPrinter* printer, char* buffer);
 //   void unpause();
 //   void toggle();
-  
 //   bool visible = false;
 //   bool paused = false;
 //   bool selected = false;
@@ -34,16 +33,25 @@ class WispMenu : public Menu {
     public:
         WispMenu() {};
         Coord2D pos = {200, 50};
-
+        Coord2D size = {300, 300};
         Coord2DF baseFontScale = {0.45, 0.7};
+
         float fontScaleMultiplier = 1;
         int lineHeightMultiplier = 20;
+        u8 outlineWidth = 2;
         u32 initialized: 1 = false;
+
+        GXColor bgColor = COLOR_TRANSPARENT_GREY;
+        GXColor outlineColor = COLOR_WHITE;
 
         void init();
         void cleanup();
         void handleInput();
         void render(TextPrinter& printer, char* buffer, u32 maxLen);
+        void drawBg(TextPrinter& printer);
+        void drawOutline(TextPrinter& printer);
+        void drawHighlightBox();
+
         float lineHeight();
 
         inline bool isActive() { return this->visible && this->paused; };

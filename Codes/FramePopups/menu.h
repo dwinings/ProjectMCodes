@@ -8,10 +8,6 @@
 #include <CLibs/cstring.h>
 
 #define RENDER_X_SPACING 80
-#define RENDER_SCALE_X 0.5;
-#define RENDER_SCALE_Y 0.5;
-#define TOP_PADDING 69
-#define LEFT_PADDING 20
 
 // this is a completely arbitrary number I HIGHLY doubt anyone will need
 // ever so it'll act as a default value
@@ -22,7 +18,7 @@ struct Page;
 struct SubpageOption;
 
 struct OptionType {
-  virtual void select() { isSelected = true; };
+  virtual void select() {  isSelected = !isSelected; };
   virtual void deselect() { isSelected = false; };
   virtual void modify(float amount) { };
   virtual void render(TextPrinter* printer, char* buffer) = 0;
@@ -85,11 +81,15 @@ class Menu {
     bool paused = false;
     bool selected = false;
     vector<Page*> pages;
-    char opacity = 0xFF;
-    GXColor currentOptionUnselectedColor = 0xFFFFFF00;
-    GXColor currentOptionSelectedColor = 0xFFFF0000;
-    GXColor readOnlyColor = 0xAAAAAA00;
-    GXColor inactiveColor = 0xCCCCCC00;
+
+    u32 highlightedOptionTop;
+    u32 highlightedOptionBottom;
+    u8 opacity = 0xFF;
+    GXColor highlightedColor = 0xFFFFFFFF;
+    GXColor selectedColor = 0xFFFF00FF;
+    GXColor readOnlyColor = 0xAAAAAAFF;
+    GXColor defaultColor = 0xCCCCCCFF;
+    u32 padding = 5;
   protected:
     int currentPageIdx = -1;
     friend class Page;
@@ -312,6 +312,7 @@ public:
   int scrollIdx = 0;
   int height = 10;
   int depth = 1;
+  u32 modifiableChildren = 0;
   bool hasSelection = false;
   bool collapsible = false;
 };

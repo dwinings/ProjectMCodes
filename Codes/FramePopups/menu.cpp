@@ -51,13 +51,20 @@ void Page::modify(float amount) {
 }
 
 void Page::render(TextPrinter* printer, char* buffer) {
+  auto& m = *menu;
   char len = options.size();
-  char opacity_mask = menu->opacity & 0xFF;
+
   for (char i = 0; i < len; i++) {
-    if (!options[i]->canModify) printer->setTextColor(menu->readOnlyColor.value | opacity_mask);
-    else if (i == currentOption && isSelected && menu->paused) printer->setTextColor(menu->currentOptionSelectedColor.value | opacity_mask);
-    else if (i == currentOption && menu->paused) printer->setTextColor(menu->currentOptionUnselectedColor.value | opacity_mask);
-    else printer->setTextColor(menu->inactiveColor.value | opacity_mask);
+    if (!options[i]->canModify) printer->setTextColor(applyAlpha(m.readOnlyColor, m.opacity));
+    else if (i == currentOption && isSelected && menu->paused) {
+      printer->setTextColor(applyAlpha(m.selectedColor, m.opacity));
+    }
+    else if (i == currentOption && menu->paused){
+      printer->setTextColor(applyAlpha(m.highlightedColor, m.opacity));
+    }
+    else {
+      printer->setTextColor(applyAlpha(m.defaultColor, m.opacity));
+    }
     printer->padToWidth(RENDER_X_SPACING / 5);
     options[i]->render(printer, buffer);
   }
@@ -197,8 +204,13 @@ void HexObserver::render(TextPrinter* printer, char* buffer) {
 
 #pragma region SubpageOption
 void SubpageOption::deselect() {
+  /*
+   * Either:
+   *   - The subpage isn't selected, so nothing happens.
+   *   - The subpage is selected + has a selected option, so deselect that option.
+   *   - The subpage is selected and has no selected option, so deselect the subpage.
+  */
   if (hasSelection) {
-    hasSelection = false;
     options[currentOption]->deselect();
     if (this->subParent != nullptr) {
       this->subParent->hasSelection = true;
@@ -206,21 +218,39 @@ void SubpageOption::deselect() {
     this->parent->isSelected = true;
   } else {
     isSelected = false;
-    if (this->subParent != nullptr) this->subParent->hasSelection = false;
-    else this->parent->isSelected = false;
   }
 }
 
 void SubpageOption::select() {
+  /*
+   * Either: 
+   *   - The subpage isn't selected, so select it. 
+   *   - The subpage is selected, so we select() the current option.
+   *     - If that option is now selected, this option hasSelection == true
+   *   - The subpage is selected, but we have nothing to select.
+   *     - We toggle the selectedness of the subpage. Mashing A should fold/unfold collapsibles,
+   *       for example.
+   */
+
   if (isSelected) {
-    options[currentOption]->select();
-    hasSelection = true;
+    // Has no changeable options.
+    if (modifiableChildren == 0) {
+      deselect();
+    } else {
+      options[currentOption]->select();
+      hasSelection = options[currentOption]->isSelected;
+    }
+  } else {
+    isSelected = true;
   }
-  isSelected = true;
 }
+
 void SubpageOption::modify(float amount) {
-  options[currentOption]->modify(amount);
+  if (options[currentOption]->canModify) {
+    options[currentOption]->modify(amount);
+  }
 }
+
 void SubpageOption::up() {
   if (hasSelection) options[currentOption]->up();
   else if (currentOption > 0) {
@@ -247,24 +277,29 @@ void SubpageOption::down() {
 
 void SubpageOption::render(TextPrinter* printer, char* buffer) {
   int len = options.size();
-
   if (scrollIdx > (len - height)) scrollIdx = len - height;
   if (scrollIdx < 0) scrollIdx = 0;
+
   if (currentOption >= len) currentOption = len - 1;
   sprintf(buffer, (collapsible) ? ((isSelected) ? "v %s" : "> %s") : "%s:", name);
   printer->printLine(buffer);
+
   if (collapsible && isSelected || !(collapsible)) {
     for (int i = scrollIdx; i < (scrollIdx + height); i++) {
       if (i >= len) {
         printer->printLine("");
       } else {
-        auto& menu = *(parent->menu);
-        char opacity_mask = parent->menu->opacity & 0xFF;
+        auto& m = *(parent->menu);
 
-        if (!options[i]->canModify) printer->setTextColor(menu.readOnlyColor.value | opacity_mask);
-        else if (i == currentOption && isSelected && menu.paused) printer->setTextColor(menu.currentOptionSelectedColor.value | opacity_mask);
-        else if (i == currentOption && menu.paused) printer->setTextColor(menu.currentOptionUnselectedColor.value | opacity_mask);
-        else printer->setTextColor(menu.inactiveColor.value | opacity_mask);
+        if (!options[i]->canModify) {
+          printer->setTextColor(applyAlpha(m.readOnlyColor, m.opacity));
+        } else if (i == currentOption && isSelected && m.paused) {
+          printer->setTextColor(applyAlpha(m.selectedColor, m.opacity));
+        } else if (i == currentOption && m.paused) {
+          printer->setTextColor(applyAlpha(m.highlightedColor, m.opacity));
+        } else {
+          printer->setTextColor(applyAlpha(m.defaultColor, m.opacity));
+        }
         printer->padToWidth((RENDER_X_SPACING / 5) * (depth + 1));
         options[i]->render(printer, buffer);
       }
@@ -276,6 +311,10 @@ void SubpageOption::addOption(OptionType* option) {
   option->parent = this->parent;
   option->subParent = this;
   options.push(option);
+
+  if (option->canModify) {
+    modifiableChildren++;
+  }
 }
 
 void SubpageOption::setParentPage(Page* p) {
@@ -296,4 +335,5 @@ void SubpageOption::removeOptions() {
 int SubpageOption::getOptionCount() {
   return options.size();
 }
+
 #pragma endregion

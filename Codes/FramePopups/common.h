@@ -53,4 +53,5 @@ extern char strManipBuffer[WISP_STR_MANIP_SIZE];
 
 int max(int a, int b);
 float fmax(float a, float b);
+GXColor applyAlpha(GXColor input, u8 alpha);
 #endif

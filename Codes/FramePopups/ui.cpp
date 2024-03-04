@@ -47,7 +47,9 @@ void WispMenu::init() {
     snprintf(displayOptsPage.title, 256, "Display Options");
     displayOptsPage.addOption(new IntOption<int>("Menu X", pos.x));
     displayOptsPage.addOption(new IntOption<int>("Menu Y", pos.y));
-    displayOptsPage.addOption(new IntOption<char>("Opacity", opacity));
+    displayOptsPage.addOption(new IntOption<int>("Menu W", size.x));
+    displayOptsPage.addOption(new IntOption<int>("Menu H", size.y));
+    displayOptsPage.addOption(new IntOption<u8>("Opacity", opacity, 0, 255));
     displayOptsPage.addOption(new FloatOption("Font Scaling", fontScaleMultiplier, (float)0, (float)100, (float)0.1));
     addPage(&displayOptsPage);
 
@@ -65,18 +67,22 @@ void WispMenu::handleInput() {
     auto& menu = *this;
     PADButtons btn;
 
-    btn.bits = PREVIOUS_PADS[0].button.bits | PREVIOUS_PADS[1].button.bits | PREVIOUS_PADS[2].button.bits | PREVIOUS_PADS[3].button.bits;
+    btn.bits = (
+        PREVIOUS_PADS[0].button.bits 
+        | PREVIOUS_PADS[1].button.bits 
+        | PREVIOUS_PADS[2].button.bits 
+        | PREVIOUS_PADS[3].button.bits
+    ) & 0b0001111101111111; // mask out the unknown button fields.
     if (btn.bits == 0) {
-        OSReport("Short circuit no buttons\n");
         return; // shortcut
     }
 
-    if ((frameCounter - lastInputFrame) < WISP_MENU_INPUT_SPEED) {
-        OSReport("Debounced input. Frame delta: %d", frameCounter - lastInputFrame);
+    if (!btn.X && ((frameCounter - lastInputFrame) < WISP_MENU_INPUT_SPEED)) {
         return; // debounce inputs.
-    } else {
-        menu.lastInputFrame = 0;
-    }
+    } 
+
+    lastInputFrame = frameCounter;
+
 
     if (btn.L && btn.R && btn.UpDPad) {
         menu.toggle();
@@ -84,15 +90,14 @@ void WispMenu::handleInput() {
     }
 
     if (!menu.isActive()) {
-        OSReport("Short circuit because inactive.\n");
         return; // reduce nesting.
     }
 
-    if (btn.A) menu.select();   return;
-    if (btn.B) menu.deselect(); return;
+    if (btn.A) { menu.select();   return; }
+    if (btn.B) { menu.deselect(); return; }
     if (menu.selected) {
-        if      (btn.UpDPad   | btn.RightDPad) menu.modify(1);
-        else if (btn.DownDPad | btn.LeftDPad)  menu.modify(-1);
+        if      (btn.UpDPad   | btn.RightDPad) menu.modify(btn.Y ?  5 :  1);
+        else if (btn.DownDPad | btn.LeftDPad)  menu.modify(btn.Y ? -5 : -1);
         return;
     } else {
         if      (btn.UpDPad)    menu.up();
@@ -108,20 +113,24 @@ float WispMenu::lineHeight() {
 }
 
 void WispMenu::render(TextPrinter& printer, char* buffer, u32 maxLen) {
-    //if (!visible) { return; }
+    if (!visible) { return; }
     if (pages.size() == 0) {
         OSReport("Tried to render a menu with no pages.\n");
         return;
     }
+
+    highlightedOptionBottom = 0;
+    highlightedOptionTop = 0;
+
     printer.setup();
-    printer.setTextColor(COLOR_WHITE);
+    printer.setTextColor(applyAlpha(selectedColor, opacity));
     printer.renderPre = true;
     Message& printerMsgObj = printer.message;
     printer.lineHeight = lineHeight();
     printerMsgObj.fontScaleY = baseFontScale.y * fontScaleMultiplier;
     printerMsgObj.fontScaleX = baseFontScale.x * fontScaleMultiplier;
-    printerMsgObj.xPos = pos.x;
-    printerMsgObj.yPos = pos.y;
+    printerMsgObj.xPos = pos.x + padding;
+    printerMsgObj.yPos = pos.y + padding;
     printerMsgObj.zPos = 0;
     printer.start2D();
 
@@ -129,8 +138,58 @@ void WispMenu::render(TextPrinter& printer, char* buffer, u32 maxLen) {
 
     auto& currentPage = *getCurrentPage();
     snprintf(buffer, maxLen, "Page %d / %d: %s", currentPageIdx+1, pages.size(), currentPage.getTitle());
+
     printer.printLine(buffer);
     currentPage.render(&printer, buffer);
+    drawBg(printer);
+    drawOutline(printer);
+    drawHighlightBox();
 
-    printer.saveBoundingBox(printer.bboxIdx, COLOR_TRANSPARENT_GREY, COLOR_WHITE, 12, WISP_PRINTER_PADDING);
+    printer.setup();
+}
+
+void WispMenu::drawBg(TextPrinter& printer) {
+    auto& message = printer.message;
+    // void Te    
+    renderables.items.preFrame.push(new Rect{
+            0,
+            1,
+            applyAlpha(highlightedColor, opacity),
+            (float)pos.y,
+            message.yPos + printer.lineHeight + padding,
+            (float)pos.x,
+            (float)(pos.x + size.x),
+            true
+    });
+}
+
+void WispMenu::drawOutline(TextPrinter& printer) {
+    auto& message = printer.message;
+
+    renderables.items.preFrame.push(new RectOutline{
+            0,
+            1,
+            applyAlpha(outlineColor, opacity),
+            (float)(pos.y - 1),
+            message.yPos + printer.lineHeight + padding + 1,
+            (float)(pos.x - 1),
+            (float)(pos.x + size.x + 1),
+            outlineWidth * 6,
+            true
+    });
+}
+
+void WispMenu::drawHighlightBox() {
+    if (highlightedOptionBottom == 0 || highlightedOptionTop == 0) { return; }
+
+    renderables.items.preFrame.push(new Rect {
+        0,
+        1,
+        applyAlpha(0x55FF55FF, opacity),
+        highlightedOptionTop,
+        highlightedOptionBottom,
+        pos.x + padding,
+        pos.x + size.x - padding,
+        true
+    });
 }
