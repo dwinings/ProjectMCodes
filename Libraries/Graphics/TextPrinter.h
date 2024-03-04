@@ -16,7 +16,7 @@ struct TextPrinter {
     void newLine(bool fromPrintFn = false);
     void startBoundingBox();
     void saveBoundingBox(int id, GXColor color, float boxPadding = 0);
-    void drawBoundingBoxes(int id);
+    void saveBoundingBox(int id, GXColor color, GXColor outlineColor, int outlineWidth, float boxPadding = 0);
     void setTextColor(GXColor color);
     void start2D();
     void startNormal();

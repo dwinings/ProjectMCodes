@@ -29,17 +29,19 @@
 //   float opacity = 0xDD;
 // };
 // Lower is faster
-#define WISP_MENU_INPUT_SPEED 5
+#define WISP_MENU_INPUT_SPEED 10
 class WispMenu : public Menu {
     public:
         WispMenu() {};
         Coord2D pos = {200, 50};
 
-        Coord2DF fontScale = {0.45, 0.7};
+        Coord2DF baseFontScale = {0.45, 0.7};
+        float fontScaleMultiplier = 1;
         int lineHeightMultiplier = 20;
         u32 initialized: 1 = false;
 
         void init();
+        void cleanup();
         void handleInput();
         void render(TextPrinter& printer, char* buffer, u32 maxLen);
         float lineHeight();
@@ -78,7 +80,7 @@ public:
         char val;
 
         for (char i = 0; i < 32; i++) {
-            val = (byte << i) & 0x1;
+            val = (byte >> i) & 0x1;
             *bufPos++ = (val == 0 ? '0' : '1');
             if (i % 8 == 7) {
                 *bufPos++ = ' ';

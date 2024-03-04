@@ -73,7 +73,7 @@ void Popup::draw(TextPrinter& printer) {
         OSReport("Rendering popup: %s", this->message);
         #endif
         renderables.items.preFrame.insert(progressRect, printer.bboxIdx+1);
-        printer.saveBoundingBox(printer.bboxIdx, COLOR_TRANSPARENT_GREY, WISP_PRINTER_PADDING);
+        printer.saveBoundingBox(printer.bboxIdx, COLOR_TRANSPARENT_GREY, 0xFFFFFFFF, 6, WISP_PRINTER_PADDING);
     }
 }
 

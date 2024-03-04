@@ -69,8 +69,8 @@ void printMessage(char const* msg, float xPos, float yPos, GXColor color = COLOR
     printer.renderPre = true;
     Message* printerMsgObj = &(printer.message);
     printer.lineHeight = globalWispMenu.lineHeight();
-    printerMsgObj->fontScaleY = globalWispMenu.fontScale.y;
-    printerMsgObj->fontScaleX = globalWispMenu.fontScale.x;
+    printerMsgObj->fontScaleY = globalWispMenu.baseFontScale.y;
+    printerMsgObj->fontScaleX = globalWispMenu.baseFontScale.x;
     printerMsgObj->xPos = xPos;
     printerMsgObj->yPos = yPos;
     printerMsgObj->zPos = 0;
@@ -94,16 +94,6 @@ extern "C" void updatePreFrame() {
     if (sceneType == SCENE_TYPE::VS || sceneType == SCENE_TYPE::TRAINING_MODE_MMS) {
         frameCounter += 1;
         renderables.renderPre();
-
-        if (FIGHTER_MANAGER->getEntryCount() > 0) {
-            if (!globalWispMenu.initialized) {
-                globalWispMenu.init();
-            };
-
-            if (globalWispMenu.initialized) {
-                globalWispMenu.handleInput();
-            }
-        }
 
         int fighterCount;
         fighterCount = FIGHTER_MANAGER->getEntryCount();
@@ -132,8 +122,18 @@ extern "C" void updatePreFrame() {
             checkAttackTargetActionable(idx);
         }
 
+        if (FIGHTER_MANAGER->getEntryCount() > 0) {
+            if (globalWispMenu.initialized) {
+                globalWispMenu.handleInput();
+            } else if (allPlayerData[0].action() != ACTION_ENTRANCE) {
+                globalWispMenu.init();
+            }
+        }
+
         globalWispMenu.render(printer, strManipBuffer, WISP_STR_MANIP_SIZE);
         drawAllPopups();
+    } else {
+        globalWispMenu.cleanup();
     }
 
 
@@ -181,15 +181,17 @@ void gatherData(u8 player) {
         return;
     }
 
-    PlayerData& playerData = allPlayerData[player];
+    EntryID entryId = FIGHTER_MANAGER->getEntryIdFromIndex(player);
+    Fighter* fighter = FIGHTER_MANAGER->getFighter(entryId, 0);
+    u8 playerNumber = FIGHTER_MANAGER->getPlayerNo(entryId);
+
+    PlayerData& playerData = allPlayerData[playerNumber];
     playerData.prepareNextFrame();
     PlayerDataOnFrame& currentData = *playerData.current;
     PlayerDataOnFrame& prevData = *playerData.current;
 
-    EntryID entryId = FIGHTER_MANAGER->getEntryIdFromIndex(player);
-    Fighter* fighter = FIGHTER_MANAGER->getFighter(entryId, 0);
     playerData.charKind = (CHAR_ID)(fighter->getFtKind());
-    u8 playerNumber = FIGHTER_MANAGER->getPlayerNo(entryId);
+
 
     allPlayerData[player].playerNumber = playerNumber;
 
@@ -317,14 +319,25 @@ void resolveAttackTarget(u8 playerIdx) {
             }
 
             auto& otherPlayer = allPlayerData[otherIdx];
-            if (otherPlayer.didReceiveHitstun() || otherPlayer.didReceiveShieldstun()){
+            if (player.showOnHitAdvantage && otherPlayer.didReceiveHitstun()) {
                 player.resetTargeting();
                 otherPlayer.resetTargeting();
 
-                OSReport("Setting Attacker %d -> Defender %d\n", player.playerNumber, otherPlayer.playerNumber);
+                OSReport("Setting on-hit Attacker %d -> Defender %d\n", player.playerNumber, otherPlayer.playerNumber);
                 player.attackTarget = &(otherPlayer);
                 player.attackingAction = player.current->action;
+                player.isAttackingFighter = true;
                 break;
+            } else if (player.showOnShieldAdvantage && otherPlayer.didReceiveShieldstun()) {
+                player.resetTargeting();
+                otherPlayer.resetTargeting();
+
+                OSReport("Setting on-shield Attacker %d -> Defender %d\n", player.playerNumber, otherPlayer.playerNumber);
+                player.attackTarget = &(otherPlayer);
+                player.attackingAction = player.current->action;
+                player.isAttackingShield = true;
+                break;
+
             }
         }
     }
@@ -346,15 +359,17 @@ void checkAttackTargetActionable(u8 playerNum) {
             short int advantage = target.becameActionableOnFrame - player.becameActionableOnFrame;
 
             /* Lots of weird edge cases where the ending doesn't register, such as dying or teching. */
-            /* > 30 frames is general judgeable with a human eye anyway. */
+            /* > 30 frames is generally judge-able with a human eye anyway. */
             if (advantage > -30 && advantage < 30) {
-                OSReport("Displaying popup for attacker: %d\n", player.playerNumber);
-                snprintf(strManipBuffer, WISP_STR_MANIP_SIZE, "Advantage: %d\n", advantage);
-                OSReport(strManipBuffer);
-                Popup& popup = *(new Popup(strManipBuffer));
-                popup.coords = getHpPopupBoxCoords(player.playerNumber);
-                popup.durationSecs = 3;
-                playerPopups[playerNum].append(popup);
+                if (player.showOnShieldAdvantage) {
+                    OSReport("Displaying popup for attacker: %d\n", player.playerNumber);
+                    snprintf(strManipBuffer, WISP_STR_MANIP_SIZE, "Advantage: %d\n", advantage);
+                    OSReport(strManipBuffer);
+                    Popup& popup = *(new Popup(strManipBuffer));
+                    popup.coords = getHpPopupBoxCoords(player.playerNumber);
+                    popup.durationSecs = 3;
+                    playerPopups[playerNum].append(popup);
+                }
             }
 
             player.resetTargeting();

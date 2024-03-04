@@ -96,36 +96,6 @@ void TextPrinter::printLine(const char *chars) {
     newLine();
 }
 
-// deprecated
-void TextPrinter::drawBoundingBoxes(int id) {
-//    for (int i = 0; i < bboxVecs.size(); i++) {
-//        if (bboxVecs[i].id == id) {
-//            vector<RectBounds> * boxes = &bboxVecs[i].rectBounds;
-//            size_t size = boxes->size();
-//            setupDrawPrimitives();
-//
-//
-//            for (int j = 0; j < size; j++) {
-//                if ((*boxes)[j].is2D) {
-//                    start2DDraw();
-//                } else {
-//                    startNormalDraw();
-//                }
-//                draw2DRectangle(
-//                    (*boxes)[j].color,
-//                    (*boxes)[j].top,
-//                    (*boxes)[j].bottom,
-//                    (*boxes)[j].left,
-//                    (*boxes)[j].right,
-//                    (*boxes)[j].zPos);
-//            }
-//            boxes->clear();
-//            setup();
-//            break;
-//        }
-//    }
-}
-
 void TextPrinter::setTextColor(GXColor color) {
     this->message.textColor.color1 = color;
     this->message.textColor.color2 = color;
@@ -179,6 +149,10 @@ void TextPrinter::startBoundingBox() {
 }
 
 void TextPrinter::saveBoundingBox(int id, GXColor color, float boxPadding) {
+    saveBoundingBox(id, color, 0, 0, boxPadding);
+}
+
+void TextPrinter::saveBoundingBox(int id, GXColor bgColor, GXColor outlineColor, int outlineWidth, float boxPadding) {
     if (lineStart + maxWidth < message.xPos) {
         maxWidth = message.xPos - lineStart;
     }
@@ -187,7 +161,7 @@ void TextPrinter::saveBoundingBox(int id, GXColor color, float boxPadding) {
     Rect * r = new Rect{
             0,
             1,
-            color,
+            bgColor,
             (startY - boxPadding) * multiplier,
             (message.yPos + lineHeight + boxPadding) * multiplier,
             lineStart - boxPadding,
@@ -197,6 +171,24 @@ void TextPrinter::saveBoundingBox(int id, GXColor color, float boxPadding) {
     // OSReport("Rect in (t, b, l, r): %.3f, %.3f, %.3f, %.3f\n", r.top, r.bottom, r.left, r.right);
     if (renderPre) renderables.items.preFrame.insert(r, bboxIdx);
     else renderables.items.frame.insert(r, bboxIdx);
+
+    if (outlineWidth != 0) {
+        RectOutline* ro = new RectOutline {
+            0,
+            1,
+            outlineColor,
+            (startY - boxPadding - 1) * multiplier,
+            (message.yPos + lineHeight + boxPadding + 1) * multiplier,
+            lineStart - boxPadding - 1,
+            lineStart + maxWidth + boxPadding + 1,
+            outlineWidth,
+            is2D,
+        };
+
+        if (renderPre) renderables.items.preFrame.insert(ro, bboxIdx+1);
+        else renderables.items.frame.insert(ro, bboxIdx+1);
+    }
+
     setup();
 }
 

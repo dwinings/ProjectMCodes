@@ -20,10 +20,12 @@ bool startsWith(const char* testStr, const char* prefix) {
 }
 
 void PlayerData::resetTargeting() {
-    this->attackingAction = -1;
-    this->attackTarget = nullptr;
-    this->becameActionableOnFrame = -1;
-    this->advantageBonusCounter = 0;
+    attackingAction = -1;
+    attackTarget = nullptr;
+    becameActionableOnFrame = -1;
+    advantageBonusCounter = 0;
+    isAttackingShield = false;
+    isAttackingFighter = false;
 }
 
 

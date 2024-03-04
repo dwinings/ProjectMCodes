@@ -5,6 +5,7 @@
 
 #include "Containers/vector.h"
 #include <Graphics/TextPrinter.h>
+#include <CLibs/cstring.h>
 
 #define RENDER_X_SPACING 80
 #define RENDER_SCALE_X 0.5;
@@ -21,9 +22,9 @@ struct Page;
 struct SubpageOption;
 
 struct OptionType {
-  virtual void select() = 0;
-  virtual void deselect() = 0;
-  virtual void modify(float amount) = 0;
+  virtual void select() { isSelected = true; };
+  virtual void deselect() { isSelected = false; };
+  virtual void modify(float amount) { };
   virtual void render(TextPrinter* printer, char* buffer) = 0;
   virtual void down() = 0;
   virtual void up() = 0;
@@ -32,13 +33,14 @@ struct OptionType {
   const char* name;
   Page* parent;
   SubpageOption* subParent = nullptr;
+  bool isSelected = false;
   bool canModify = true;
 };
 
 struct StandardOption : public OptionType {
-  void up() { modify(1); }
-  void down() { modify(-1); }
-  void setParentPage(Page* p) { this->parent = p; }
+  virtual void up() { modify(1); }
+  virtual void down() { modify(-1); }
+  virtual void setParentPage(Page* p) { this->parent = p; }
   virtual ~StandardOption() {}
 };
 
@@ -64,16 +66,6 @@ struct Page {
   char title[256] = "generic page";
 };
 
-struct BasicPage : public Page {
-  BasicPage(Menu* myMenu, const char* title);
-  void select();
-  void deselect();
-  const char* getTitle();
-  virtual void show() = 0;
-private:
-  const char* title;
-};
-
 class Menu {
   public:
     void nextPage();
@@ -93,56 +85,51 @@ class Menu {
     bool paused = false;
     bool selected = false;
     vector<Page*> pages;
-    float opacity = 0xF5;
+    char opacity = 0xFF;
+    GXColor currentOptionUnselectedColor = 0xFFFFFF00;
+    GXColor currentOptionSelectedColor = 0xFFFF0000;
+    GXColor readOnlyColor = 0xAAAAAA00;
+    GXColor inactiveColor = 0xCCCCCC00;
   protected:
     int currentPageIdx = -1;
+    friend class Page;
 };
 
-struct PageLink : public StandardOption {
-  Page* target;
-  PageLink(const char* name, Page* target) {
-    this->target = target;
-    this->name = name;
-  }
-  void modify(float);
-  void select();
-  void deselect();
-  void render(TextPrinter* printer, char* buffer);
-};
-
+template <typename T>
 class IntOption : public StandardOption {
 public:
-  IntOption(const char* name, int& value) : value(value) {
+  IntOption(const char* name, T& value) : value(value) {
     this->name = name;
     this->value = value;
   }
-  IntOption(const char* name, int& value, int min, int max) : value(value) {
+  IntOption(const char* name, T& value, T min, T max) : value(value) {
     this->name = name;
     this->value = value;
     this->min = min;
     this->max = max;
+    hasBounds = true;
   }
-  IntOption(const char* name, int& value, bool canModify) : value(value) {
+  IntOption(const char* name, T& value, bool canModify) : value(value) {
     this->name = name;
     this->value = value;
     this->canModify = canModify;
   }
-  IntOption(const char* name, int& value, int min, int max, bool canModify) : value(value) {
+  IntOption(const char* name, T& value, T min, T max, bool canModify) : value(value) {
     this->name = name;
     this->value = value;
     this->min = min;
     this->max = max;
     this->canModify = canModify;
+    hasBounds = true;
   }
   void modify(float amount);
-  void select();
-  void deselect();
   void render(TextPrinter* printer, char* buffer);
 
 private:
-  int& value;
-  int max = NUMERIC_DEFAULT;
-  int min = NUMERIC_DEFAULT;
+  T& value;
+  T max;
+  T min;
+  bool hasBounds = false;
 };
 
 class FloatOption : public StandardOption {
@@ -182,8 +169,6 @@ public:
     this->canModify = canModify;
   }
   void modify(float amount);
-  void select();
-  void deselect();
   void render(TextPrinter* printer, char* buffer);
 
   ~FloatOption() {}
@@ -206,8 +191,6 @@ public:
   }
 
   void modify(float amount);
-  void select();
-  void deselect();
   void render(TextPrinter* printer, char* buffer);
 
 private:
@@ -229,8 +212,6 @@ public:
     this->value = value;
   }
   void modify(float amount);
-  void select();
-  void deselect();
   void render(TextPrinter* printer, char* buffer);
 
 private:
@@ -261,8 +242,6 @@ public:
   }
 
   void modify(float amount);
-  void select();
-  void deselect();
   void render(TextPrinter* printer, char* buffer);
 
 private:
@@ -333,39 +312,30 @@ public:
   int scrollIdx = 0;
   int height = 10;
   int depth = 1;
-  bool isSelected = false;
   bool hasSelection = false;
   bool collapsible = false;
 };
 
-class BarOption : public StandardOption {
-public:
-  BarOption(const char* name, float& value, float& max, GXColor color, float width) : value(value), max(max) {
-    this->name = name;
-    this->color = color;
-    this->width = width;
-    this->canModify = false;
-  }
-
-  BarOption(const char* name, float& value, float& max, float& min, GXColor color, float width) : value(value), max(max), min(min) {
-    this->name = name;
-    this->color = color;
-    this->width = width;
-    this->canModify = false;
-  }
-
-  void modify(float amount) {}
-  void select() {}
-  void deselect() {}
-  void render(TextPrinter* printer, char* buffer);
-
-private:
-  float& max;
-  float& min = this->defaultMin;
-  float defaultMin = 0;
-  float& value;
-  float width;
-  GXColor color;
+class SpacerOption : public StandardOption {
+  public:
+    SpacerOption() { canModify = false; }
+    void render(TextPrinter* printer, char* buffer) {
+      printer->printLine("");
+    };
 };
 
+#pragma region templated
+template <typename T>
+void IntOption<T>::modify(float amount) {
+  value += (T)amount;
+  if (hasBounds && value > max) value = min;
+  else if (hasBounds && value < min) value = max;
+}
+
+template <typename T>
+void IntOption<T>::render(TextPrinter* printer, char* buffer) {
+  _sprintf(buffer, "%s: %03d", name, value);
+  printer->printLine(buffer);
+}
+#pragma endregion
 #endif // WISP_MENU_H

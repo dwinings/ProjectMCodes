@@ -58,6 +58,8 @@ struct PlayerData {
         /* interactive flags */
         u32 didStartAttack: 1 = false;
         u32 didConnectAttack: 1 = false;
+        u32 isAttackingShield: 1 = false;
+        u32 isAttackingFighter: 1 = false;
 
         /* display flags */
         bool showOnHitAdvantage = false;

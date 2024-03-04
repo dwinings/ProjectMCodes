@@ -6,33 +6,23 @@
 
 #define OSReport ((void (*)(const char* text, ...)) 0x801d8600)
 
-//////////////////////////////////
-// Page
-//////////////////////////////////
+#pragma region Page
 void Page::addOption(OptionType* option) {
   option->setParentPage(this);
   options.push(option);
 }
 
 void Page::deselect() {
-  if (!isSelected) {
-    hide();
-  } else {
-    isSelected = false;
+  if (isSelected) {
     options[currentOption]->deselect();
+    isSelected = options[currentOption]->isSelected;
   }
 }
 
 void Page::select() {
-  isSelected = true;
   options[currentOption]->select();
+  isSelected = options[currentOption]->isSelected;
 }
-
-/*
-void Page::setTitle(char* newTitle) {
-  sprintf(this->title, newTitle);
-}
-*/
 
 void Page::up() {
   if (isSelected) options[currentOption]->up();
@@ -62,11 +52,12 @@ void Page::modify(float amount) {
 
 void Page::render(TextPrinter* printer, char* buffer) {
   char len = options.size();
+  char opacity_mask = menu->opacity & 0xFF;
   for (char i = 0; i < len; i++) {
-    if (!options[i]->canModify) printer->setTextColor(0xFFAAAADD);
-    else if (i == currentOption && isSelected) printer->setTextColor(0xFFFF00FF);
-    else if (i == currentOption) printer->setTextColor(0xFFFFFFFF);
-    else printer->setTextColor(0xFFFFFF88);
+    if (!options[i]->canModify) printer->setTextColor(menu->readOnlyColor.value | opacity_mask);
+    else if (i == currentOption && isSelected && menu->paused) printer->setTextColor(menu->currentOptionSelectedColor.value | opacity_mask);
+    else if (i == currentOption && menu->paused) printer->setTextColor(menu->currentOptionUnselectedColor.value | opacity_mask);
+    else printer->setTextColor(menu->inactiveColor.value | opacity_mask);
     printer->padToWidth(RENDER_X_SPACING / 5);
     options[i]->render(printer, buffer);
   }
@@ -76,21 +67,12 @@ void Page::hide() {}
 void Page::show() {}
 
 const char* Page::getTitle() { return this->title; }
+#pragma endregion
 
-//////////////////////////////////
-// BasicPage
-//////////////////////////////////
-BasicPage::BasicPage(Menu* myMenu, const char* t) : Page(myMenu) {this->title = t;};
-void BasicPage::select() {Page::select();}
-void BasicPage::deselect() {Page::deselect();}
-const char* BasicPage::getTitle() { return this->title; }
-
-//////////////////////////////////
-// Menu
-//////////////////////////////////
+#pragma region Menu
 void Menu::addPage(Page* p) { 
   p->menu = this;
-  pages.insert(p, pages.size());
+  pages.push(p);
   if (currentPageIdx == -1) { currentPageIdx = 0; }
 }
 
@@ -101,7 +83,7 @@ void Menu::nextPage() {
 
 void Menu::prevPage() {
   currentPageIdx -= 1;
-  if (currentPageIdx == -1) { currentPageIdx = pages.size(); }
+  if (currentPageIdx == -1) { currentPageIdx = pages.size()-1; }
 }
 
 Page* Menu::getCurrentPage() { 
@@ -109,8 +91,10 @@ Page* Menu::getCurrentPage() {
   return pages[currentPageIdx]; 
 }
 
-void Menu::select() { selected = true; getCurrentPage()->select(); }
-void Menu::deselect() { getCurrentPage()->deselect(); selected = false; }
+void Menu::select() { getCurrentPage()->select(); selected = getCurrentPage()->isSelected; }
+void Menu::deselect() { 
+  getCurrentPage()->deselect(); selected = getCurrentPage()->isSelected; 
+}
 void Menu::up() { getCurrentPage()->up(); }
 void Menu::down() { getCurrentPage()->down(); }
 
@@ -118,24 +102,16 @@ void Menu::modify(float amount) { getCurrentPage()->modify(amount); }
 
 void Menu::render(TextPrinter* printer, char* buffer) {  
   printer->startBoundingBox();
-  /*
-  char amt = path.size();
-  printer->print(" > ");
-  for (char i = 0; i < amt; i++) {
-    printer->print(path[i]->getTitle());
-    printer->print(" / ");
-  }
-  */
   char internalBuf[128];
   snprintf(internalBuf, 128, "Page 1 / %d", pages.size());
   printer->printLine(buffer);
   printer->printLine("");
   getCurrentPage()->render(printer, buffer);
-  printer->saveBoundingBox(0, (0x000000 << 8) | (int) opacity, 2);
+  printer->saveBoundingBox(0, 0x222222FF | (opacity & 0xFF), 0x000000FF | (opacity & 0xFF), 2, WISP_PRINTER_PADDING);
 }
 void Menu::unpause() { paused = false; }
 void Menu::toggle() {
-  if (visible) {
+  if (visible || paused) {
     paused = false;
     visible = false;
   } else {
@@ -143,74 +119,66 @@ void Menu::toggle() {
     visible = true;
   }
 }
+#pragma endregion
 
-//////////////////////////////////
-// PageLink
-//////////////////////////////////
-void PageLink::modify(float _) {}
-void PageLink::select() {
-  /* Not working rn.
-  parent->menu->nextPage(target);
-  parent->isSelected = false;
-  parent->menu->selected = false;
-  */
-}
-void PageLink::deselect() {}
-void PageLink::render(TextPrinter* printer, char* buffer) {
-  sprintf(buffer, "%s >", name);
-  printer->printLine(buffer);
-}
+#pragma region ModifiableScalars
 
-//////////////////////////////////
-// IntOption
-//////////////////////////////////
-void IntOption::modify(float amount) {
-  value += (int) amount;
-  if (max != NUMERIC_DEFAULT && value > max) value = min;
-  else if (min != NUMERIC_DEFAULT && value < min) value = max;
-}
-void IntOption::select() {}
-void IntOption::deselect() {}
-void IntOption::render(TextPrinter* printer, char* buffer) {
-  sprintf(buffer, "%s: %03d", name, value);
-  printer->printLine(buffer);
-}
-
-//////////////////////////////////
-// FloatOption
-//////////////////////////////////
 void FloatOption::modify(float amount) {
   value += amount * changeMultiplier;
   if (max != NUMERIC_DEFAULT && value > max) value = min;
   else if (min != NUMERIC_DEFAULT && value < min) value = max;
 }
-void FloatOption::select() {}
-void FloatOption::deselect() {}
 void FloatOption::render(TextPrinter* printer, char* buffer) {
   sprintf(buffer, "%s: %.3f", name, value);
   printer->printLine(buffer);
 }
 
-//////////////////////////////////
-// BoolOption
-//////////////////////////////////
 void BoolOption::modify(float amount) {
-  if (amount > 0) value = true;
-  else value = false;
+  value = !value;
 }
-void BoolOption::select() {}
-void BoolOption::deselect() {}
 void BoolOption::render(TextPrinter* printer, char* buffer) {
   sprintf(buffer, "%s: %s", name, value ? "on" : "off");
   printer->printLine(buffer);
 }
+#pragma endregion
 
-//////////////////////////////////
-// HexObserver
-//////////////////////////////////
+#pragma region ControlOption
+void ControlOption::modify(float amount) {}
+void ControlOption::select() {
+  value = true;
+  this->parent->menu->paused = false;
+}
+void ControlOption::deselect() {
+  value = false;
+  this->parent->menu->paused = true;
+}
+void ControlOption::render(TextPrinter* printer, char* buffer) {
+  sprintf(buffer, "%s", name);
+  printer->printLine(buffer);
+}
+#pragma endregion
+
+#pragma region StringOption
+void StringOption::modify(float amount) {}
+void StringOption::render(TextPrinter* printer, char* buffer) {
+  sprintf(buffer, "%s: %s", name, value);
+  printer->printLine(buffer);
+}
+#pragma endregion
+
+
+#pragma region NamedIndexOption
+void NamedIndexOption::modify(float amount) {}
+void NamedIndexOption::select() {}
+void NamedIndexOption::deselect() {}
+void NamedIndexOption::render(TextPrinter* printer, char* buffer) {
+  sprintf(buffer, "%s: %s", name, (0 <= index && index < arrayLength) ? nameArray[index] : " ");
+  printer->printLine(buffer);
+}
+#pragma endregion
+
+#pragma region HexObserver
 void HexObserver::modify(float amount) {}
-void HexObserver::select() {}
-void HexObserver::deselect() {}
 void HexObserver::render(TextPrinter* printer, char* buffer) {
   switch (size) {
     case HexSize::CHAR:
@@ -225,49 +193,9 @@ void HexObserver::render(TextPrinter* printer, char* buffer) {
   }
   printer->printLine(buffer);
 }
+#pragma endregion
 
-//////////////////////////////////
-// ControlOption
-//////////////////////////////////
-void ControlOption::modify(float amount) {}
-void ControlOption::select() {
-  value = true;
-  this->parent->menu->paused = false;
-}
-void ControlOption::deselect() {
-  value = false;
-  this->parent->menu->paused = true;
-}
-void ControlOption::render(TextPrinter* printer, char* buffer) {
-  sprintf(buffer, "%s", name);
-  printer->printLine(buffer);
-}
-
-//////////////////////////////////
-// StringOption
-//////////////////////////////////
-void StringOption::modify(float amount) {}
-void StringOption::select() {}
-void StringOption::deselect() {}
-void StringOption::render(TextPrinter* printer, char* buffer) {
-  sprintf(buffer, "%s: %s", name, value);
-  printer->printLine(buffer);
-}
-
-//////////////////////////////////
-// NamedIndexOption
-//////////////////////////////////
-void NamedIndexOption::modify(float amount) {}
-void NamedIndexOption::select() {}
-void NamedIndexOption::deselect() {}
-void NamedIndexOption::render(TextPrinter* printer, char* buffer) {
-  sprintf(buffer, "%s: %s", name, (0 <= index && index < arrayLength) ? nameArray[index] : " ");
-  printer->printLine(buffer);
-}
-
-//////////////////////////////////
-// SubpageOption
-//////////////////////////////////
+#pragma region SubpageOption
 void SubpageOption::deselect() {
   if (hasSelection) {
     hasSelection = false;
@@ -330,11 +258,14 @@ void SubpageOption::render(TextPrinter* printer, char* buffer) {
       if (i >= len) {
         printer->printLine("");
       } else {
-        if (!options[i]->canModify) printer->setTextColor(0xFFAAAADD);
-        else if (i == currentOption && hasSelection) printer->setTextColor(0xFFFF00FF);
-        else if (i == currentOption) printer->setTextColor(0x88FF88FF);
-        else printer->setTextColor(0xFFFFFF88);
-        printer->padToWidth((RENDER_X_SPACING / 5 * (depth + 1)));
+        auto& menu = *(parent->menu);
+        char opacity_mask = parent->menu->opacity & 0xFF;
+
+        if (!options[i]->canModify) printer->setTextColor(menu.readOnlyColor.value | opacity_mask);
+        else if (i == currentOption && isSelected && menu.paused) printer->setTextColor(menu.currentOptionSelectedColor.value | opacity_mask);
+        else if (i == currentOption && menu.paused) printer->setTextColor(menu.currentOptionUnselectedColor.value | opacity_mask);
+        else printer->setTextColor(menu.inactiveColor.value | opacity_mask);
+        printer->padToWidth((RENDER_X_SPACING / 5) * (depth + 1));
         options[i]->render(printer, buffer);
       }
     }
@@ -365,34 +296,4 @@ void SubpageOption::removeOptions() {
 int SubpageOption::getOptionCount() {
   return options.size();
 }
-
-//////////////////////////////////
-// BarOption
-//////////////////////////////////
-void BarOption::render(TextPrinter* printer, char* buffer) {
-  sprintf(buffer, "%s: ", name);
-  printer->print(buffer);
-
-  float xPos = printer->message.xPos;
-  float yPos = printer->message.yPos + 2;
-  
-  renderables.items.frame.push(new Rect(
-    GXColor(0x00000088),
-    yPos - 1,
-    yPos + printer->message.fontScaleY * 18 + 1,
-    xPos - 1,
-    xPos + width + 1,
-    true
-  ));
-
-  renderables.items.frame.push(new Rect(
-    color,
-    yPos,
-    yPos + printer->message.fontScaleY * 18,
-    xPos,
-    xPos + width * (((value - min) <= 0) ? 0 : (value - min) / max),
-    true
-  ));
-
-  printer->printLine("");
-}
+#pragma endregion
