@@ -17,7 +17,7 @@
     }
   },
   {
-    "name": "Frame Popups",
+    "name": "Project Punch",
     "compilers": {
       "CXX": "${workspaceFolder}/BuildSystem/Compiler/bin/powerpc-eabi-g++.exe"
     },
@@ -32,7 +32,7 @@
       "SUPER_TRAINING": 0,
       "PURE_AI": 0,
       "DRAW_A_RECTANGLE": 0,
-      "FRAME_POPUPS": 1
+      "PROJECT_PUNCH": 1
     }
   },
   {
