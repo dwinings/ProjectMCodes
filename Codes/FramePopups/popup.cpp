@@ -2,6 +2,12 @@
 
 extern u32 frameCounter;
 
+PopupConfig gPopupConfig = PopupConfig {
+    .popupPadding = 10,
+    .bgColor = COLOR_TRANSPARENT_GREY,
+    .outlineColor = 0xBBBBBBFF
+};
+
 Popup::Popup(const char* text) {
     this->startFrame = startFrame;
     this->text = new char[strlen(text)];
@@ -52,8 +58,8 @@ void Popup::draw(TextPrinter& printer) {
 
 
         int multiplier = (printer.is2D) ? 1 : -1;
-        float left = printer.lineStart - WISP_PRINTER_PADDING;
-        float right = printer.lineStart + actualWidth + WISP_PRINTER_PADDING;
+        float left = printer.lineStart - gPopupConfig.popupPadding;
+        float right = printer.lineStart + actualWidth + gPopupConfig.popupPadding;
         float lrdelta = right - left;
 
         // We can't just re-use this rect because the renderables vector implementation
@@ -62,8 +68,8 @@ void Popup::draw(TextPrinter& printer) {
             0,
             1,
             progressColor,
-            ((printerMsgObj->yPos + printer.lineHeight + WISP_PRINTER_PADDING) * multiplier) - (7*multiplier),
-            (printerMsgObj->yPos + printer.lineHeight + WISP_PRINTER_PADDING) * multiplier,
+            ((printerMsgObj->yPos + printer.lineHeight + gPopupConfig.popupPadding) * multiplier) - (7*multiplier),
+            (printerMsgObj->yPos + printer.lineHeight + gPopupConfig.popupPadding) * multiplier,
             left,
             right - (this->percentElapsed()*lrdelta),
             printer.is2D
@@ -72,8 +78,8 @@ void Popup::draw(TextPrinter& printer) {
         #ifdef WISP_DEBUG
         OSReport("Rendering popup: %s", this->message);
         #endif
-        renderables.items.preFrame.insert(progressRect, printer.bboxIdx+1);
-        printer.saveBoundingBox(printer.bboxIdx, COLOR_TRANSPARENT_GREY, 0xFFFFFFFF, 6, WISP_PRINTER_PADDING);
+        printer.saveBoundingBox(printer.bboxIdx, gPopupConfig.bgColor, gPopupConfig.outlineColor, 6, gPopupConfig.popupPadding);
+        renderables.items.preFrame.push(progressRect);
     }
 }
 

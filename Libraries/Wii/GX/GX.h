@@ -17,8 +17,8 @@ union GXColor {
         u8 green;
         u8 blue;
         u8 alpha;
-    }__attribute__((packed, aligned(4)));
-}__attribute__((packed, aligned(4)));
+    };
+};
 
 union WGPipe {
     vu8 U8;

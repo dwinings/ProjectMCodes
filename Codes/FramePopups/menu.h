@@ -25,6 +25,8 @@ struct OptionType {
     virtual void down() = 0;
     virtual void up() = 0;
     virtual void setParentPage(Page* p) = 0;
+    virtual bool isScalarOption() { return true; };
+    virtual bool isFullySelected() { return isSelected; };
     virtual ~OptionType() {};
     const char* name;
     Page* parent;
@@ -34,8 +36,8 @@ struct OptionType {
 };
 
 struct StandardOption : public OptionType {
-    virtual void up() { modify(1); }
-    virtual void down() { modify(-1); }
+    virtual void up() { };
+    virtual void down() { };
     virtual void setParentPage(Page* p) { this->parent = p; }
     virtual ~StandardOption() {}
 };
@@ -52,6 +54,7 @@ struct Page {
     virtual void show();
     virtual void select();
     virtual void deselect();
+    virtual bool isFullySelected() { return options[currentOption]->isFullySelected(); };
     virtual const char* getTitle();
     virtual ~Page() {}
 
@@ -82,14 +85,18 @@ public:
     bool selected = false;
     vector<Page*> pages;
 
-    u32 highlightedOptionTop;
-    u32 highlightedOptionBottom;
+    float highlightedOptionTop;
+    float highlightedOptionBottom;
     u8 opacity = 0xFF;
     GXColor highlightedColor = 0xFFFFFFFF;
-    GXColor selectedColor = 0xFFFF00FF;
+    GXColor selectedColor = 0x3333FFFF;
     GXColor readOnlyColor = 0xAAAAAAFF;
     GXColor defaultColor = 0xCCCCCCFF;
-    u32 padding = 5;
+    GXColor bgColor = 0x555555CC;
+    GXColor outlineColor = 0x000000FF;
+    GXColor highlightBoxColor = 0x55FF55FF;
+
+    float padding = 5;
 protected:
     int currentPageIdx = -1;
     friend class Page;
@@ -122,6 +129,15 @@ public:
         this->canModify = canModify;
         hasBounds = true;
     }
+    IntOption(const char* name, T& value, T min, T max, bool canModify, bool asHex) : value(value) {
+        this->name = name;
+        this->value = value;
+        this->min = min;
+        this->max = max;
+        this->canModify = canModify;
+        hasBounds = true;
+        this->asHex = asHex;
+    }
     void modify(float amount);
     void render(TextPrinter* printer, char* buffer);
 
@@ -130,6 +146,7 @@ private:
     T max;
     T min;
     bool hasBounds = false;
+    bool asHex = false;
 };
 
 class FloatOption : public StandardOption {
@@ -289,13 +306,20 @@ public:
         this->collapsible = collapsible;
     }
 
-    void modify(float amount);
-    void select();
-    void deselect();
-    void render(TextPrinter* printer, char* buffer);
-    void down();
-    void up();
-    void setParentPage(Page* p);
+    virtual void modify(float amount);
+    virtual void select();
+    virtual void deselect();
+    virtual void render(TextPrinter* printer, char* buffer);
+    virtual void down();
+    virtual void up();
+    virtual void setParentPage(Page* p);
+    virtual bool isScalarOption() { return false; };
+    virtual bool isFullySelected();
+
+    bool hasCurrentOption() { 
+      return !((currentOption < 0) || (currentOption >= (int)options.size())); 
+    };
+    OptionType& currentOptionRef() {return *options[currentOption]; }
 
     void addOption(OptionType* option);
     void clearOptions();
@@ -308,13 +332,15 @@ public:
 
     vector<OptionType*> options = vector<OptionType*>();
     int& currentOption = this->_index;
-    int _index = 0;
-    int scrollIdx = 0;
+    int _index = -1;
+    char indent = 16;
+    char scrollIdx = 0;
     int height = 10;
-    int depth = 1;
+    char depth = 1;
     u32 modifiableChildren = 0;
     bool hasSelection = false;
     bool collapsible = false;
+    bool collapsed = true;
 };
 
 class SpacerOption : public StandardOption {
@@ -335,7 +361,11 @@ void IntOption<T>::modify(float amount) {
 
 template <typename T>
 void IntOption<T>::render(TextPrinter* printer, char* buffer) {
-    _sprintf(buffer, "%s: %03d", name, value);
+    if (asHex) {
+      _sprintf(buffer, "%s: 0x%02X", name, value);
+    } else {
+      _sprintf(buffer, "%s: %02d", name, value);
+    }
     printer->printLine(buffer);
 }
 #pragma endregion

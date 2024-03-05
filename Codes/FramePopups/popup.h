@@ -9,6 +9,9 @@
 
 #include "common.h"
 
+struct PopupConfig;
+extern PopupConfig gPopupConfig;
+
 class Popup {
     public:
         Popup(const char* text);
@@ -22,11 +25,16 @@ class Popup {
         u8 fps = 60;
         u16 durationSecs = 5;
         u16 minWidth = 100;
-        GXColor color = 0xFFFFFFFF; // white
         Coord2D coords;
     private:
         Rect* progressRect;
         char* text;
+};
+
+struct PopupConfig {
+     int popupPadding;
+     GXColor bgColor;
+     GXColor outlineColor;
 };
 
 void drawAllPopups(vector<Popup*>& popups, TextPrinter& printer, u32 currentFrame);

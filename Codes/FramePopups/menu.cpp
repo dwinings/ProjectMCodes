@@ -47,6 +47,15 @@ void Page::down() {
 }
 
 void Page::modify(float amount) {
+    if (!isSelected) {
+        if (amount >= 0) {
+            up();
+        } else {
+            down();
+        }
+        return;
+    }
+    
     options[currentOption]->modify(amount);
 }
 
@@ -98,12 +107,28 @@ Page* Menu::getCurrentPage() {
     return pages[currentPageIdx];
 }
 
-void Menu::select() { getCurrentPage()->select(); selected = getCurrentPage()->isSelected; }
-void Menu::deselect() {
-    getCurrentPage()->deselect(); selected = getCurrentPage()->isSelected;
+void Menu::select() { 
+    getCurrentPage()->select(); 
+    selected = getCurrentPage()->isFullySelected(); 
 }
-void Menu::up() { getCurrentPage()->up(); }
-void Menu::down() { getCurrentPage()->down(); }
+
+void Menu::deselect() {
+    if (getCurrentPage()->isSelected) {
+        getCurrentPage()->deselect();
+    } else {
+        unpause();
+    }
+}
+
+void Menu::up() { 
+    getCurrentPage()->up(); 
+    selected = getCurrentPage()->isFullySelected();
+}
+
+void Menu::down() {
+    getCurrentPage()->down();
+    selected = getCurrentPage()->isFullySelected();
+}
 
 void Menu::modify(float amount) { getCurrentPage()->modify(amount); }
 
@@ -114,11 +139,12 @@ void Menu::render(TextPrinter* printer, char* buffer) {
     printer->printLine(buffer);
     printer->printLine("");
     getCurrentPage()->render(printer, buffer);
-    printer->saveBoundingBox(0, 0x222222FF | (opacity & 0xFF), 0x000000FF | (opacity & 0xFF), 2, WISP_PRINTER_PADDING);
+    printer->saveBoundingBox(0, 0x222222FF | (opacity & 0xFF), 0x000000FF | (opacity & 0xFF), 2, 10);
 }
+
 void Menu::unpause() { paused = false; }
 void Menu::toggle() {
-    if (visible || paused) {
+    if (paused) {
         paused = false;
         visible = false;
     }
@@ -211,106 +237,158 @@ void SubpageOption::deselect() {
      *   - The subpage is selected + has a selected option, so deselect that option.
      *   - The subpage is selected and has no selected option, so deselect the subpage.
     */
+
     if (hasSelection) {
-        options[currentOption]->deselect();
-        if (this->subParent != nullptr) {
-            this->subParent->hasSelection = true;
-        }
-        this->parent->isSelected = true;
-    }
-    else {
+        auto& opt = currentOptionRef();
+        opt.deselect();
+        hasSelection = opt.isSelected;
+    } else {
         isSelected = false;
+        collapsed = true;
+        this->parent->isSelected = false;
     }
 }
 
 void SubpageOption::select() {
     /*
-     * Either:
-     *   - The subpage isn't selected, so select it.
-     *   - The subpage is selected, so we select() the current option.
-     *     - If that option is now selected, this option hasSelection == true
-     *   - The subpage is selected, but we have nothing to select.
-     *     - We toggle the selectedness of the subpage. Mashing A should fold/unfold collapsibles,
-     *       for example.
+     * Cases:
+     *   - The subpage is not focused.
+     *       Gain focus.
+     *   - The subpage is focused, but is not pointing at a viable child opt.
+     *       Close the subpage.
+     *         (note, this should be the header)
+     *   - The subpage is focused, and is pointing at a viable child opt.
+     *       Toggle the focus of the child opt.
      */
-
     if (isSelected) {
-        // Has no changeable options.
-        if (modifiableChildren == 0) {
+        if (!hasCurrentOption()) {
             deselect();
-        }
-        else {
-            options[currentOption]->select();
-            hasSelection = options[currentOption]->isSelected;
-        }
-    }
-    else {
+        } else {
+            auto& option = currentOptionRef(); 
+             if (option.canModify) {
+                currentOptionRef().select();
+                hasSelection = option.isSelected;
+             }
+        } 
+    } else {
         isSelected = true;
+        collapsed = false;
     }
 }
 
 void SubpageOption::modify(float amount) {
+    if (!hasSelection) {
+        amount > 0 ? up() : down();
+        return;
+    }
+
+    /* safeguard */
     if (options[currentOption]->canModify) {
         options[currentOption]->modify(amount);
     }
 }
 
 void SubpageOption::up() {
-    if (hasSelection) options[currentOption]->up();
-    else if (currentOption > 0) {
-        char start = currentOption;
-        for (char i = --currentOption; i > 0 && !options[i]->canModify; i--) {
-            currentOption--;
+    /*
+     * Cases:
+     *   - We have a focused element, so pass the up() through.
+     *   - We are at the header (currentOpt == -1)
+     *        close the subpage and tell the parent page to go up. 
+     *   - We are at a child option (opt >= 0) and have a modifiable above us:
+     *        Go to that modifiable
+     *   - We are at a child option (opt >= 0) and have no modifiable above us:
+     *        Go to the header (-1)
+     *
+     */
+    if (hasSelection){
+        currentOptionRef().up();
+        return;
+    }
+
+    if (currentOption < 0 || options.size() == 0) {
+        deselect();
+        parent->up();
+        return;
+    }
+
+    bool hasFoundOpt = false;
+    int start = currentOption;
+    for (int i = --start; i >= 0; i--) {
+        // Go to next 
+        if (options[i]->canModify) {
+            currentOption = i;
+            hasFoundOpt = true;
+            break;
         }
-        if (!options[currentOption]->canModify) currentOption = start;
-        if (currentOption < (scrollIdx + (height / 2))) scrollIdx--;
+    }
+
+    if (!hasFoundOpt) {
+        // No more options north of us.
+        currentOption = -1;
+        return;
     }
 }
+
 void SubpageOption::down() {
-    if (hasSelection) options[currentOption]->down();
-    else if (currentOption < options.size() - 1) {
-        char start = currentOption;
-        char size = options.size();
-        for (char i = ++currentOption; i < (size - 1) && !options[i]->canModify; i++) {
-            currentOption++;
+    /*
+     * Cases:
+     *   - We have a selected child, so passthrough
+     *   - We have a modifiable element below us, so go to that.
+     *   - We have no more modifiable children, so close this subpage and tell our parent to go down.
+     */
+    if (hasSelection) {
+        currentOptionRef().down();
+        return;
+    }
+
+    if (currentOption >= (int)options.size()) {
+        // We're at the bottom, so get out of here.
+        deselect();
+        parent->down();
+        return;
+    }
+
+    int start = currentOption;
+    bool foundOption = false;
+    for (int i = ++start; i < (int)options.size(); i++) {
+        if (options[i]->canModify) {
+            currentOption = i;
+            foundOption = true;
+            break;
         }
-        if (!options[currentOption]->canModify) currentOption = start;
-        if (currentOption > (scrollIdx + (height / 2))) scrollIdx++;
+    }
+
+    if (!foundOption) {
+        // unlike in up(), we don't have a footer or anything, so close the subpage.
+        deselect();
+        parent->down();
+        return;
     }
 }
 
 void SubpageOption::render(TextPrinter* printer, char* buffer) {
+    float oldXPos;
     int len = options.size();
-    if (scrollIdx > (len - height)) scrollIdx = len - height;
-    if (scrollIdx < 0) scrollIdx = 0;
-
-    if (currentOption >= len) currentOption = len - 1;
     sprintf(buffer, (collapsible) ? ((isSelected) ? "v %s" : "> %s") : "%s:", name);
     printer->printLine(buffer);
 
-    if (collapsible && isSelected || !(collapsible)) {
-        for (int i = scrollIdx; i < (scrollIdx + height); i++) {
-            if (i >= len) {
-                printer->printLine("");
-            }
-            else {
-                auto& m = *(parent->menu);
+    if ((collapsible && !collapsed) || !(collapsible)) {
+        for (int i = 0; i < options.size(); i++) {
+            auto& m = *(parent->menu);
 
-                if (!options[i]->canModify) {
-                    printer->setTextColor(applyAlpha(m.readOnlyColor, m.opacity));
-                }
-                else if (i == currentOption && isSelected && m.paused) {
-                    printer->setTextColor(applyAlpha(m.selectedColor, m.opacity));
-                }
-                else if (i == currentOption && m.paused) {
-                    printer->setTextColor(applyAlpha(m.highlightedColor, m.opacity));
-                }
-                else {
-                    printer->setTextColor(applyAlpha(m.defaultColor, m.opacity));
-                }
-                printer->padToWidth((RENDER_X_SPACING / 5) * (depth + 1));
-                options[i]->render(printer, buffer);
+            if (!options[i]->canModify) {
+                printer->setTextColor(applyAlpha(m.readOnlyColor, m.opacity));
+            } else if (i == currentOption && hasSelection && m.paused) {
+                printer->setTextColor(applyAlpha(m.selectedColor, m.opacity));
+            } else if (i == currentOption && m.paused) {
+                printer->setTextColor(applyAlpha(m.highlightedColor, m.opacity));
+            } else {
+                printer->setTextColor(applyAlpha(m.defaultColor, m.opacity));
             }
+            oldXPos = printer->message.xPos;
+            printer->message.xPos += (indent + ((indent * (depth + 1))));
+            options[i]->render(printer, buffer);
+            printer->message.xPos = oldXPos;
         }
     }
 }
@@ -323,6 +401,15 @@ void SubpageOption::addOption(OptionType* option) {
     if (option->canModify) {
         modifiableChildren++;
     }
+}
+
+bool SubpageOption::isFullySelected() {
+    if (hasSelection) {
+        OptionType& opt = currentOptionRef();
+        (opt.isScalarOption() ? opt.isSelected : opt.isFullySelected());
+    }
+
+    return false;
 }
 
 void SubpageOption::setParentPage(Page* p) {

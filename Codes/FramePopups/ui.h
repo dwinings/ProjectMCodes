@@ -32,17 +32,15 @@
 class WispMenu : public Menu {
     public:
         WispMenu() {};
-        Coord2D pos = {200, 50};
-        Coord2D size = {300, 300};
+        Coord2D pos = {100, 25};
+        Coord2D size = {440, 350};
         Coord2DF baseFontScale = {0.45, 0.7};
 
-        float fontScaleMultiplier = 1;
-        int lineHeightMultiplier = 20;
-        u8 outlineWidth = 2;
+        float fontScaleMultiplier = 1.5;
+        float titleFontScaleMultiplier = 1.8;
+        int lineHeightMultiplier = 23;
+        u8 outlineWidth = 3;
         u32 initialized: 1 = false;
-
-        GXColor bgColor = COLOR_TRANSPARENT_GREY;
-        GXColor outlineColor = COLOR_WHITE;
 
         void init();
         void cleanup();
@@ -51,7 +49,6 @@ class WispMenu : public Menu {
         void drawBg(TextPrinter& printer);
         void drawOutline(TextPrinter& printer);
         void drawHighlightBox();
-
         float lineHeight();
 
         inline bool isActive() { return this->visible && this->paused; };
@@ -59,6 +56,7 @@ class WispMenu : public Menu {
         u32 lastInputFrame;
 };
 
+#pragma region observers
 #define BO_METH_PTR(T, V) T const* instance, V (T::*getter) () const
 template <typename T, typename V>
 class BaseObserver: public StandardOption {
@@ -140,6 +138,7 @@ public:
         printer->printLine(buffer);
     };
 };
+#pragma endregion
 
 extern linkedlist<Popup> playerPopups[WISP_MAX_PLAYERS];
 extern WispMenu& globalWispMenu;

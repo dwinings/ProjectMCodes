@@ -84,7 +84,7 @@ struct CharWriterTextColor {
     GXColor color3;
     GXColor color4;
     GXColor color5;
-}__attribute__((packed, aligned(4)));
+};
 
 struct FontDataVTable {
     void** FontData_descriptor_8059c4f0;
@@ -315,7 +315,7 @@ struct Message {
 
     char _spacer10[0x200 - 0x1D0 - 4];
 
-}__attribute__((packed, aligned(4)));
+};
 
 //not 100% sure what the flags do, but color flag should be 0, and font flag should be 9
 #define _setDefaultEnv_Message ((void (*)(Message* message, int _textColorFlagThing, int _fontFlagThing)) 0x8006a964)

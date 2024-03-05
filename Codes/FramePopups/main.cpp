@@ -78,7 +78,7 @@ void printMessage(char const* msg, float xPos, float yPos, GXColor color = COLOR
 
     printer.startBoundingBox();
     printer.print(msg);
-    printer.saveBoundingBox(printer.bboxIdx, COLOR_TRANSPARENT_GREY, WISP_PRINTER_PADDING);
+    printer.saveBoundingBox(printer.bboxIdx, COLOR_TRANSPARENT_GREY, 10);
 }
 
 // calls our function
