@@ -1,5 +1,5 @@
-#ifndef WISP_ACTIONS
-#define WISP_ACTIONS
+#ifndef PP_ACTIONS
+#define PP_ACTIONS
 
 #include "stddef.h"
 #include <Brawl/FT/Fighter.h>

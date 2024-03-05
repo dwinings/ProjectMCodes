@@ -9,11 +9,11 @@
 #include <Brawl/FT/ftManager.h>
 
 extern u32 frameCounter;
-extern PlayerData allPlayerData[WISP_MAX_PLAYERS];
+extern PlayerData allPlayerData[PP_MAX_PLAYERS];
 
 /* EXTERN DEFS */
-WispMenu& globalWispMenu = *(new WispMenu());
-linkedlist<Popup> playerPopups[WISP_MAX_PLAYERS] = {
+PpunchMenu& punchMenu = *(new PpunchMenu());
+linkedlist<Popup> playerPopups[PP_MAX_PLAYERS] = {
     linkedlist<Popup>(),
     linkedlist<Popup>(),
     linkedlist<Popup>(),
@@ -21,7 +21,7 @@ linkedlist<Popup> playerPopups[WISP_MAX_PLAYERS] = {
 };
 /************/
 
-void WispMenu::init() {
+void PpunchMenu::init() {
     padding = 25;
     bgColor = 0x2D2D2DDD;  // dark grey
     highlightedColor = 0xEEE8AAFF; //ylw
@@ -75,13 +75,13 @@ void WispMenu::init() {
     initialized = true;
 }
 
-void WispMenu::cleanup() {
+void PpunchMenu::cleanup() {
     currentPageIdx = 0;
     pages.empty();
     initialized = false;
 }
 
-void WispMenu::handleInput() {
+void PpunchMenu::handleInput() {
     auto& menu = *this;
     PADButtons btn;
 
@@ -95,7 +95,7 @@ void WispMenu::handleInput() {
         return; // shortcut
     }
 
-    if (!btn.X && ((frameCounter - lastInputFrame) < WISP_MENU_INPUT_SPEED)) {
+    if (!btn.X && ((frameCounter - lastInputFrame) < PP_MENU_INPUT_SPEED)) {
         return; // debounce inputs.
     } 
 
@@ -131,11 +131,11 @@ void WispMenu::handleInput() {
     //}
 }
 
-float WispMenu::lineHeight() {
+float PpunchMenu::lineHeight() {
     return this->baseFontScale.y * fontScaleMultiplier * this->lineHeightMultiplier;
 }
 
-void WispMenu::render(TextPrinter& printer, char* buffer, u32 maxLen) {
+void PpunchMenu::render(TextPrinter& printer, char* buffer, u32 maxLen) {
     if (!visible) { return; }
     if (pages.size() == 0) {
         OSReport("Tried to render a menu with no pages.\n");
@@ -181,7 +181,7 @@ void WispMenu::render(TextPrinter& printer, char* buffer, u32 maxLen) {
     printer.setup();
 }
 
-void WispMenu::drawBg(TextPrinter& printer) {
+void PpunchMenu::drawBg(TextPrinter& printer) {
     auto& message = printer.message;
     // void Te    
     renderables.items.preFrame.push(new Rect{
@@ -197,7 +197,7 @@ void WispMenu::drawBg(TextPrinter& printer) {
     });
 }
 
-void WispMenu::drawOutline(TextPrinter& printer) {
+void PpunchMenu::drawOutline(TextPrinter& printer) {
     auto& message = printer.message;
 
     renderables.items.preFrame.push(new RectOutline{
@@ -214,7 +214,7 @@ void WispMenu::drawOutline(TextPrinter& printer) {
     });
 }
 
-void WispMenu::drawHighlightBox() {
+void PpunchMenu::drawHighlightBox() {
     if (highlightedOptionBottom == 0 || highlightedOptionTop == 0) { return; }
 
     renderables.items.preFrame.push(new Rect {

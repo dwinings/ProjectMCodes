@@ -11,7 +11,7 @@ INJECTION("TOGGLE_PAUSE", 0x8002E5B0, R"(
 
 extern "C" void checkMenuPaused(char* gfTaskSchedulerInst) {
     // OSReport("Visible: %s, paused: %s\n", visible ? "T" : "F", paused ? "T" : "F");
-    if (globalWispMenu.paused && globalWispMenu.visible) { gfTaskSchedulerInst[0xB] |= 0x8; }
+    if (punchMenu.paused && punchMenu.visible) { gfTaskSchedulerInst[0xB] |= 0x8; }
     else { gfTaskSchedulerInst[0xB] &= ~0x8; }
 }
 
@@ -68,9 +68,9 @@ void printMessage(char const* msg, float xPos, float yPos, GXColor color = COLOR
     printer.setTextColor(color);
     printer.renderPre = true;
     Message* printerMsgObj = &(printer.message);
-    printer.lineHeight = globalWispMenu.lineHeight();
-    printerMsgObj->fontScaleY = globalWispMenu.baseFontScale.y;
-    printerMsgObj->fontScaleX = globalWispMenu.baseFontScale.x;
+    printer.lineHeight = punchMenu.lineHeight();
+    printerMsgObj->fontScaleY = punchMenu.baseFontScale.y;
+    printerMsgObj->fontScaleX = punchMenu.baseFontScale.x;
     printerMsgObj->xPos = xPos;
     printerMsgObj->yPos = yPos;
     printerMsgObj->zPos = 0;
@@ -123,17 +123,17 @@ extern "C" void updatePreFrame() {
         }
 
         if (FIGHTER_MANAGER->getEntryCount() > 0) {
-            if (globalWispMenu.initialized) {
-                globalWispMenu.handleInput();
+            if (punchMenu.initialized) {
+                punchMenu.handleInput();
             } else if (allPlayerData[0].action() != ACTION_ENTRANCE) {
-                globalWispMenu.init();
+                punchMenu.init();
             }
         }
 
-        globalWispMenu.render(printer, strManipBuffer, WISP_STR_MANIP_SIZE);
+        punchMenu.render(printer, strManipBuffer, PP_STR_MANIP_SIZE);
         drawAllPopups();
     } else {
-        globalWispMenu.cleanup();
+        punchMenu.cleanup();
     }
 
 
@@ -216,7 +216,7 @@ void gatherData(u8 player) {
 
     if (statusModule != nullptr) {
         /* OSReport("Action number: %x\n", statusModule->action); */
-        // never seems to work. strcpy(playerData.current->actionname, statusModule->getStatusName(), WISP_ACTION_NAME_LEN);
+        // never seems to work. strcpy(playerData.current->actionname, statusModule->getStatusName(), PP_ACTION_NAME_LEN);
         playerData.current->action = statusModule->action;
         if (statusModule->attackHasConnected) {
             playerData.didConnectAttack = true;
@@ -287,7 +287,7 @@ void gatherData(u8 player) {
             auto animationResource = animationData.resPtr->CHR0Ptr;
             // OSReport("Animation Resource: 0x%X\n", animationResource);
             if (animationResource == nullptr) {
-                strcpy(playerData.current->subactionName, "UNKNOWN", WISP_ACTION_NAME_LEN);
+                strcpy(playerData.current->subactionName, "UNKNOWN", PP_ACTION_NAME_LEN);
                 playerData.current->actionTotalFrames = -1;
             } else {
                 playerData.current->subactionFrame = motionModule->getFrame();
@@ -295,7 +295,7 @@ void gatherData(u8 player) {
                 // do these ever differ, except by 1?
                 playerData.current->subactionTotalFrames = motionModule->getEndFrame();
                 playerData.current->actionTotalFrames = animationResource->animLength;
-                strcpy(playerData.current->subactionName, animationResource->getString(), WISP_ACTION_NAME_LEN);
+                strcpy(playerData.current->subactionName, animationResource->getString(), PP_ACTION_NAME_LEN);
             }
 
             playerData.current->actionFrame = (u32)animationData.animFrame;
@@ -313,7 +313,7 @@ void resolveAttackTarget(u8 playerIdx) {
     PlayerData& player = allPlayerData[playerIdx];
     // False most of the time, so this isn't as slow as it looks.
     if (player.didConnectAttack != false) {
-        for (char otherIdx = 0; otherIdx < WISP_MAX_PLAYERS; otherIdx++) {
+        for (char otherIdx = 0; otherIdx < PP_MAX_PLAYERS; otherIdx++) {
             if (playerIdx == otherIdx) {
                 continue;
             }
@@ -363,7 +363,7 @@ void checkAttackTargetActionable(u8 playerNum) {
             if (advantage > -30 && advantage < 30) {
                 if (player.showOnShieldAdvantage) {
                     OSReport("Displaying popup for attacker: %d\n", player.playerNumber);
-                    snprintf(strManipBuffer, WISP_STR_MANIP_SIZE, "Advantage: %d\n", advantage);
+                    snprintf(strManipBuffer, PP_STR_MANIP_SIZE, "Advantage: %d\n", advantage);
                     OSReport(strManipBuffer);
                     Popup& popup = *(new Popup(strManipBuffer));
                     popup.coords = getHpPopupBoxCoords(player.playerNumber);
@@ -450,7 +450,7 @@ Coord2D getHpPopupBoxCoords(int playerNum) {
 }
 
 void drawAllPopups() {
-    for(int i = 0; i < WISP_MAX_PLAYERS; i++) {
+    for(int i = 0; i < PP_MAX_PLAYERS; i++) {
         auto itr = LinkedlistIterator(playerPopups[i]);
         Popup* popup;
         Coord2D coords = getHpPopupBoxCoords(i);
@@ -465,7 +465,7 @@ void drawAllPopups() {
                 // OSReport("Set popup coords to %d,%d\n", coords.x, coords.y);
                 popup->draw(printer);
 
-                coords.y -= WISP_POPUP_VERTICAL_OFFSET;
+                coords.y -= PP_POPUP_VERTICAL_OFFSET;
             }
         }
     }

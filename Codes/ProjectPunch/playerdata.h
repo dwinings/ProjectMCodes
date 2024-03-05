@@ -1,5 +1,5 @@
-#ifndef WISP_PLAYERDATA_H
-#define WISP_PLAYERDATA_H
+#ifndef PP_PLAYERDATA_H
+#define PP_PLAYERDATA_H
 
 #include <CLibs/cstring.h>
 #include <Memory.h>
@@ -158,6 +158,6 @@ inline void PlayerData::prepareNextFrame() {
 }
 
 
-extern PlayerData allPlayerData[WISP_MAX_PLAYERS];
+extern PlayerData allPlayerData[PP_MAX_PLAYERS];
 
 #endif

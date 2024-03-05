@@ -27,8 +27,8 @@ void Popup::draw(TextPrinter& printer) {
         printer.setTextColor(COLOR_WHITE);
         printer.renderPre = true;
         Message* printerMsgObj = &(printer.message);
-        printerMsgObj->fontScaleX = WISP_DEFAULT_FONT_SCALE_X;
-        printerMsgObj->fontScaleY = WISP_DEFAULT_FONT_SCALE_Y;
+        printerMsgObj->fontScaleX = PP_DEFAULT_FONT_SCALE_X;
+        printerMsgObj->fontScaleY = PP_DEFAULT_FONT_SCALE_Y;
         printer.lineHeight = printerMsgObj->fontScaleY * 20;
         printerMsgObj->xPos = coords.x;
         printerMsgObj->yPos = coords.y;
@@ -75,7 +75,7 @@ void Popup::draw(TextPrinter& printer) {
             printer.is2D
         };
 
-        #ifdef WISP_DEBUG
+        #ifdef PP_DEBUG
         OSReport("Rendering popup: %s", this->message);
         #endif
         printer.saveBoundingBox(printer.bboxIdx, gPopupConfig.bgColor, gPopupConfig.outlineColor, 6, gPopupConfig.popupPadding);

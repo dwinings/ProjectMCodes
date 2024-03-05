@@ -1,22 +1,22 @@
-#ifndef WISP_COMMON_H
-#define WISP_COMMON_H
+#ifndef PP_COMMON_H
+#define PP_COMMON_H
 
 #include <stddef.h>
 #include <Wii/GX/GX.h>
 
 /* Static value defines */
 
-#define WISP_STR_MANIP_SIZE 512
+#define PP_STR_MANIP_SIZE 512
 #define COLOR_TRANSPARENT_GREY ((GXColor)0x000000DD)
 #define COLOR_WHITE ((GXColor)0xFFFFFFFF)
-#define WISP_ACTION_NAME_LEN 32
-#define WISP_FONT_SCALE_INC 0.1
-#define WISP_DEFAULT_MSG_X_POS 100
-#define WISP_DEFAULT_MSG_Y_POS 100
-#define WISP_DEFAULT_FONT_SCALE_X 0.5
-#define WISP_DEFAULT_FONT_SCALE_Y 0.7
-#define WISP_POPUP_VERTICAL_OFFSET 50
-#define WISP_MAX_PLAYERS 4
+#define PP_ACTION_NAME_LEN 32
+#define PP_FONT_SCALE_INC 0.1
+#define PP_DEFAULT_MSG_X_POS 100
+#define PP_DEFAULT_MSG_Y_POS 100
+#define PP_DEFAULT_FONT_SCALE_X 0.5
+#define PP_DEFAULT_FONT_SCALE_Y 0.7
+#define PP_POPUP_VERTICAL_OFFSET 50
+#define PP_MAX_PLAYERS 4
 
 #define OSReport ((void (*)(const char* text, ...)) 0x801d8600)
 #define sprintf ((int (*)(char* buffer, const char* format, ...)) 0x803f89fc)
@@ -48,7 +48,7 @@ enum SCENE_TYPE {
 };
 
 extern u32 frameCounter;
-extern char strManipBuffer[WISP_STR_MANIP_SIZE];
+extern char strManipBuffer[PP_STR_MANIP_SIZE];
 
 int max(int a, int b);
 float fmax(float a, float b);

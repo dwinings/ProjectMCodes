@@ -3,7 +3,7 @@
 // Universal Externs. This is imported by common.h so it is usable throughout.
 
 u32 frameCounter = 0;
-char strManipBuffer[WISP_STR_MANIP_SIZE] = {};
+char strManipBuffer[PP_STR_MANIP_SIZE] = {};
 
 /******/
 

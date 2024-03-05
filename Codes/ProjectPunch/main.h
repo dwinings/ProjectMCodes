@@ -1,5 +1,5 @@
-#ifndef WISP_DRAW_H
-#define WISP_DRAW_H
+#ifndef PP_DRAW_H
+#define PP_DRAW_H
 
 #include <stddef.h>
 #include <Assembly.h>
@@ -25,8 +25,6 @@
 #include "./popup.h"
 #include "./linkedlist.h"
 #include "./ui.h"
-
-#define WISP_ADVANTAGE_LENIENCY 3
 
 SCENE_TYPE getScene();
 

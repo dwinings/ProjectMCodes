@@ -1,7 +1,7 @@
 #include "playerdata.h"
 
 extern unsigned int frameCounter;
-PlayerData allPlayerData[WISP_MAX_PLAYERS] = {};
+PlayerData allPlayerData[PP_MAX_PLAYERS] = {};
 
 bool startsWith(const char* testStr, const char* prefix) {
     while (*prefix != '\0') {
@@ -35,7 +35,7 @@ int PlayerData::debugStr(char* buffer) {
     // OSReport("subactionName: 0x%X\n", subactionName);
     PlayerDataOnFrame& f = *(this->current);
 
-    return snprintf(buffer, WISP_STR_MANIP_SIZE,
+    return snprintf(buffer, PP_STR_MANIP_SIZE,
     "  Action: 0x%X, %s\n"
     "  Subaction: 0x%X, %s\n"
     "  Frames: %d/%d\n"

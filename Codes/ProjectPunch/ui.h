@@ -1,4 +1,5 @@
-#ifndef WISP_UI
+#ifndef PP_UI
+#define PP_UI
 
 #include "menu.h"
 #include "common.h"
@@ -9,29 +10,10 @@
 #include <Wii/PAD/PADButtons.h>
 #include <Wii/PAD/PADStatus.h>
 
-// struct Menu {
-//   void nextPage(Page* p);
-//   Page* getCurrentPage();
-//   void select();
-//   void deselect();
-//   void up();
-//   void down();
-//   void modify(float amount);
-//   void render(TextPrinter* printer, char* buffer);
-//   void unpause();
-//   void toggle();
-//   bool visible = false;
-//   bool paused = false;
-//   bool selected = false;
-//   vector<Page*> pages;
-//   vector<Page*> path;
-//   float opacity = 0xDD;
-// };
-// Lower is faster
-#define WISP_MENU_INPUT_SPEED 10
-class WispMenu : public Menu {
+#define PP_MENU_INPUT_SPEED 10
+class PpunchMenu : public Menu {
     public:
-        WispMenu() {};
+        PpunchMenu() {};
         Coord2D pos = {100, 25};
         Coord2D size = {440, 350};
         Coord2DF baseFontScale = {0.45, 0.7};
@@ -140,8 +122,7 @@ public:
 };
 #pragma endregion
 
-extern linkedlist<Popup> playerPopups[WISP_MAX_PLAYERS];
-extern WispMenu& globalWispMenu;
+extern linkedlist<Popup> playerPopups[PP_MAX_PLAYERS];
+extern PpunchMenu& punchMenu;
 
 #endif
-#define WISP_UI

@@ -1,7 +1,7 @@
 // Wanton hosting of fudgepop's menu for my own purposes/modification
 
-#ifndef WISP_MENU_H
-#define WISP_MENU_H
+#ifndef PP_MENU_H
+#define PP_MENU_H
 
 #include "Containers/vector.h"
 #include <Graphics/TextPrinter.h>
@@ -369,4 +369,4 @@ void IntOption<T>::render(TextPrinter* printer, char* buffer) {
     printer->printLine(buffer);
 }
 #pragma endregion
-#endif // WISP_MENU_H
+#endif
