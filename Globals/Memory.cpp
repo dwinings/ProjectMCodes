@@ -31,15 +31,22 @@ extern "C" void free(void* ptr) {
 	freeToExpHeap(mainHeap, ptr);
 }
 
+#ifndef OSReport
+#define OSReport ((void (*)(const char* text, ...)) 0x801d8600)
+#endif
 void* operator new(size_t n) {
-	return malloc(n);
+	void* p = malloc(n);
+    //OSReport("New allocation of %d bytes at 0x%x\n", n, p);
+    return p;
 }
 
 void operator delete(void* p) {
+    // OSReport("deleting allocation @ 0x%x\n", p);
 	free(p);
 }
 
 void operator delete(void* p, size_t size) {
+    //OSReport("deleting allocation of %d bytes at 0x%x\n", size, p);
     free(p);
 }
 

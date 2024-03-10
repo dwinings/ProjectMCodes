@@ -1,7 +1,9 @@
 #include "playerdata.h"
+#include "fighterNames.h"
 
 extern unsigned int frameCounter;
-PlayerData allPlayerData[PP_MAX_PLAYERS] = {};
+PlayerData* allPlayerData = new PlayerData[PP_MAX_PLAYERS];
+
 
 bool startsWith(const char* testStr, const char* prefix) {
     while (*prefix != '\0') {
@@ -30,25 +32,18 @@ void PlayerData::resetTargeting() {
 
 
 int PlayerData::debugStr(char* buffer) {
-    // OSReport("buffer: 0x%X\n", buffer);
-    // OSReport("actionname: 0x%X\n", actionname);
-    // OSReport("subactionName: 0x%X\n", subactionName);
     PlayerDataOnFrame& f = *(this->current);
 
     return snprintf(buffer, PP_STR_MANIP_SIZE,
-    "  Action: 0x%X, %s\n"
-    "  Subaction: 0x%X, %s\n"
-    "  Frames: %d/%d\n"
-    "  Hitstun: %d/%d\n"
-    "  Shieldstun?: %d/%d\n"
-    "  Shielding: %c\n"
+    "Player %d: %s\n"
+    "  Action:     %s(0x%X)      Frames: %d/%d\n"
+    "  Subaction: %s(0x%X)\n"
+    "  Hitstun: %d/%d        Shieldstun: %d/%d        Shielding: %c\n"
     ,
-    f.action, actionName(f.action),
-    f.subaction, f.subactionName,
-    f.actionFrame, f.actionTotalFrames,
-    f.hitstun, maxHitstun,
-    f.shieldstun, maxShieldstun,
-    (f.isShielding() ? 'T' : 'F')
+    playerNumber, fighterName(charId),
+    actionName(f.action), f.action, f.actionFrame, f.actionTotalFrames,
+    f.subactionName, f.subaction, 
+    f.hitstun, maxHitstun, f.shieldstun, maxShieldstun, (f.isShielding() ? 'T' : 'F')
     );
 }
 
@@ -84,7 +79,7 @@ bool PlayerData::resolvePlayerActionable() {
         return true;
     }
 
-    if (player.current->getLowRABit(RA_BIT_ENABLE_ACTION_TRANSITION) && !isEATBitExclusion(player.charKind, player.current->action)) {
+    if (player.current->getLowRABit(RA_BIT_ENABLE_ACTION_TRANSITION) && !isEATBitExclusion(player.charId, player.current->action)) {
         OSReport("Attacker %d became actionable through the EnableActionTransition RA-Bit.\n", player.playerNumber);
         player.becameActionableOnFrame = frameCounter + 1;
         return true;

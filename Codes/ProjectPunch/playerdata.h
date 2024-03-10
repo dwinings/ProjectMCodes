@@ -15,9 +15,14 @@ struct PlayerDisplayOptions;
 
 // This is stuff that changes on every frame.
 struct PlayerDataOnFrame {
+    PlayerDataOnFrame() {
+        strncpy(subactionName, "UNKNOWN", PP_ACTION_NAME_LEN);
+        OSReport("PlayerDataOnFrame ctor: this=0x%x\n", this);
+    };
+
     u32 action = 0;
     u32 subaction = 0;
-    char subactionName[32];
+    char subactionName[PP_ACTION_NAME_LEN] = {};
     float subactionFrame = 0;
     float subactionTotalFrames = 0;
 
@@ -39,32 +44,53 @@ struct PlayerDataOnFrame {
 // It doesn't auto-clear and needs to be cleared manually.
 struct PlayerData {
     public:
-        u16 maxHitstun = 0;
-        u16 maxShieldstun = 0;
+        PlayerData() {
+            maxHitstun = 0;
+            maxShieldstun = 0;
+            attackTarget = nullptr;
+            becameActionableOnFrame = -1;
+            lastAttackEndedOnFrame = -1;
+            attackingAction = -1;
+            prev = new PlayerDataOnFrame();
+            current = new PlayerDataOnFrame();
+
+            didStartAttack = false;
+            didConnectAttack = false;
+            isAttackingShield = false;
+            isAttackingFighter = false;
+            showOnHitAdvantage = false;
+            showOnShieldAdvantage = false;
+            showFighterState = false;
+            showActOutOfLag = false;
+            OSReport("PlayerData ctor: this=0x%x, current=0x%x, prev=0x%x\n", this, current, prev);
+        };
+        u16 maxHitstun;
+        u16 maxShieldstun;
         u8 playerNumber;
-        CHAR_ID charKind;
+        CHAR_ID charId;
 
         /* Targeting bookkeeping */
-        PlayerData* attackTarget = nullptr;
-        char advantageBonusCounter = 0;
-        u32 becameActionableOnFrame = -1;
-        u32 lastAttackEndedOnFrame = -1;
-        u16 attackingAction = -1;
+        PlayerData* attackTarget;
+        char advantageBonusCounter;
+        u32 becameActionableOnFrame;
+        u32 lastAttackEndedOnFrame;
+        u16 attackingAction;
 
         /* Swapped every frame */
-        PlayerDataOnFrame* prev = &_f1;
-        PlayerDataOnFrame* current = &_f2;
+        PlayerDataOnFrame* prev;
+        PlayerDataOnFrame* current;
 
         /* interactive flags */
-        u32 didStartAttack: 1 = false;
-        u32 didConnectAttack: 1 = false;
-        u32 isAttackingShield: 1 = false;
-        u32 isAttackingFighter: 1 = false;
+        u32 didStartAttack: 1;
+        u32 didConnectAttack: 1;
+        u32 isAttackingShield: 1;
+        u32 isAttackingFighter: 1;
 
         /* display flags */
-        bool showOnHitAdvantage = false;
-        bool showOnShieldAdvantage = true;
-        bool showActOutOfLag = true;
+        bool showOnHitAdvantage;
+        bool showOnShieldAdvantage;
+        bool showActOutOfLag;
+        bool showFighterState;
 
 
         /* aliases for fields on Current*/
@@ -94,9 +120,6 @@ struct PlayerData {
         bool resolvePlayerActionable();
         bool resolveTargetActionable();
         int debugStr(char* buffer);
-    private: 
-        PlayerDataOnFrame _f1;
-        PlayerDataOnFrame _f2;
 };
 
 struct PlayerDisplayOptions {
@@ -158,6 +181,5 @@ inline void PlayerData::prepareNextFrame() {
 }
 
 
-extern PlayerData allPlayerData[PP_MAX_PLAYERS];
-
+extern PlayerData* allPlayerData;
 #endif

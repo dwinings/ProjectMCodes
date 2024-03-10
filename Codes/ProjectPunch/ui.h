@@ -13,15 +13,38 @@
 #define PP_MENU_INPUT_SPEED 10
 class PpunchMenu : public Menu {
     public:
-        PpunchMenu() {};
-        Coord2D pos = {100, 25};
-        Coord2D size = {440, 350};
-        Coord2DF baseFontScale = {0.45, 0.7};
+        PpunchMenu() {
+            pos = {100, 25};
+            size = {440, 350};
 
-        float fontScaleMultiplier = 1.5;
-        float titleFontScaleMultiplier = 1.8;
-        int lineHeightMultiplier = 23;
-        u8 outlineWidth = 3;
+            padding = 25;
+            outlineWidth = 4;
+            lineHeightMultiplier = 25;
+
+            baseFontScale = {0.5, 0.7};
+            titleBaseFontScale = {0.5, 1.0};
+            fontScaleMultiplier = 1.15;
+            titleFontScaleMultiplier = 1.0;
+
+            bgColor = 0x303030DD;  // dark grey
+            highlightedColor = 0xEEE8AAFF; //ylw
+            selectedColor = 0x75A5E2FF; // blu
+            defaultColor = 0xFFFFFFFF; 
+            outlineColor = 0x505050FF; // light grey
+            highlightBoxColor = 0x000000FF;
+        };
+
+        Coord2D pos;
+        Coord2D size;
+        Coord2DF baseFontScale;
+        Coord2DF titleBaseFontScale;
+
+        float fontScaleMultiplier;
+        float titleFontScaleMultiplier;
+        int lineHeightMultiplier;
+        u8 outlineWidth;
+
+        bool fixedHeight = true;
         u32 initialized: 1 = false;
 
         void init();
@@ -36,6 +59,8 @@ class PpunchMenu : public Menu {
         inline bool isActive() { return this->visible && this->paused; };
     private:
         u32 lastInputFrame;
+        bool LLastFrame = false;
+        bool RLastFrame = false;
 };
 
 #pragma region observers

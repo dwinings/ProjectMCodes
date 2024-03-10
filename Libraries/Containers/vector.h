@@ -23,6 +23,7 @@ public:
     ~vector<T>();
 
     T& operator[](u32 index) const;
+    bool set(u32 index, const T& val);
     bool operator==(const vector<T>& other);
     bool operator!=(const vector<T>& other);
     /*bool operator<(const vector<T>& other);
@@ -59,6 +60,16 @@ private:
 template<class T>
 T& vector<T>::operator[](u32 index) const {
     return Array[index];
+}
+
+template<class T>
+bool vector<T>::set(u32 index, const T& val) {
+    if (index >= size()){
+        return false;
+    }
+
+    Array[index] = val;
+    return true;
 }
 
 

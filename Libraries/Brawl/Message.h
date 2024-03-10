@@ -76,13 +76,12 @@ enum HEAPTYPE {
 };
 
 
-//each of these colors a portion of the text, not sure which yet
-//not sure if the fifth is nescassary
+/* Used to color a glyph with a gradient.*/
 struct CharWriterTextColor {
-    GXColor color1;
-    GXColor color2;
-    GXColor color3;
-    GXColor color4;
+    GXColor color1; // top left
+    GXColor color2; // top right corner
+    GXColor color3; // bottom left
+    GXColor color4; // bottom right
     GXColor color5;
 };
 
@@ -141,6 +140,7 @@ typedef u16 UTF16;
 typedef f32	Mtx[3][4];
 
 
+#define _setDrawFlag ((void (*)(Message* message, u32 a, u32 b)) 0x8006fe50)
 //This is called a ton of things
 //Anything with the ms prefix that has to do with printing
 //This might be a derived class, but I'm going to treat them all as the same for now
@@ -241,14 +241,13 @@ struct Message {
     //seems to affect text width
     float _fontWidthThing = 1;
 
-    //0x5C
-    //Set by SetEdge[ms10Char]
-    float _edge = 0;
+    // 0x5C
+    // Outline width.
+    float edgeWidth = 0;
 
     //0x60
-    //Set by SetEdge, each byte set individually
-    char _edgeBytes[4];
-//    unsigned char _edgeBytes[4] = {0, 0, 0, 0xFF};
+    // Outline Color.
+    GXColor edgeColor;
 
 
     char _spacer5[0x68 - 0x60 - 4];
@@ -273,23 +272,37 @@ struct Message {
     float screenEndY = 480;
 
 
-    char _spacer7[0x8C - 0x74 - 4 * 4];
+    char _spacer7[0x88 - 0x74 - 4 * 4];
 
 
+    //0x88
+    float charSpace = 0;
     //0x8C
-    //not sure if this is the space between lines for newline or something else
-    float _lineSpace = 0;
+    float lineSpace = 0;
 
-    char _spacer8[0x94 - 0x8C - 4];
+    int tabWidth;
 
 
     //0x94
     //might be a bool, but is 4 bytes
     //Seems to affect GX color mapping
     //Set to 0 by default using setDrawFlag[Message]
-    int _drawFlag = 0;
+    // bits 
+    // _drawFlag
+    union drawFlag {
+        u32 value = 0;
+        struct {
+            u32 _unk: 1;
+            u32 alignment: 2;
+            u32 _unk2: 28;
+        };
+    } drawFlag;
 
-    char _spacer9[0x1B8 - 0x94 - 4];
+    //0x98
+    // I think this processes control characters in the utf16 text.
+    void* tagProcessor;
+
+    char _spacer9[0x1B8 - 0x98 - 4];
 
 
     //0x1B8
@@ -311,10 +324,22 @@ struct Message {
     //0x1D0
     //seems to point to message buffer object
     //Has more stuff in it than just message, but not needed if manually printing characters, so leaving it void*
+    // A lot of the stuff in here is related to "tags", which look like commands that control the 
     void* _messageBuffer;
+
 
     char _spacer10[0x200 - 0x1D0 - 4];
 
+};
+/* Looks like this points to an array of instructions, and it writes them in order: */
+enum MsgCommands {
+
+    SetFace = 2,
+    SetScale = 13,
+    SetLineHeight = 14,
+    SetFixedWidth = 15,
+    SetEdge = 17,
+    SetDrawFlags = 24,
 };
 
 //not 100% sure what the flags do, but color flag should be 0, and font flag should be 9

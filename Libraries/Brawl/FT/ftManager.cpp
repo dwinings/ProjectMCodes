@@ -55,3 +55,7 @@ void FtManager::setSlow(int excludeTeam, int unknown, int slowStrength, int dura
 bool FtManager::isCpuActive(EntryID entry) {
     return _isCpuActive_ftManager(this, entry);
 }
+
+bool FtManager::isFighterActivate(EntryID entry, int getFollower) {
+    return _isFighterActivate_ftManager(this, entry, getFollower);
+}

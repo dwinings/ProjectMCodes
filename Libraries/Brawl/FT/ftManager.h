@@ -16,6 +16,9 @@ struct ftSlotManager;
 //the port of the fighter
 typedef char playerNumber;
 
+#define __getFighterOperationStatus_ftManager ((int (*)(FtManager* self, EntryID entryId)) 0x80814b78)
+#define __setFighterOperationStatus_ftManager ((void (*)(FtManager* self, EntryID entryId, int fighterOperationStatus)) 0x80814b3c)
+#define __getFighterOperationType_ftManager ((int (*)(FtManager* self, EntryID entryId)) 0x80814c5c)
 struct FtManager {
     playerNumber getPlayerNo(EntryID entry);
     FtOwner* getOwner(EntryID entry);
@@ -30,6 +33,11 @@ struct FtManager {
     // gets the total number of fighters in the match
     unsigned int getFighterNo(EntryID entry);
     AiInput* getInput(EntryID entry);
+    void setFighterOperationStatus(EntryID entryId, int fighterOperationStatus) { __setFighterOperationStatus_ftManager(this, entryId, fighterOperationStatus); };
+    // 0 is locked I think
+    int getFighterOperationStatus (EntryID entryId) { return __getFighterOperationStatus_ftManager(this, entryId); };
+    int getFighterOperationType(EntryID entryId) { return __getFighterOperationType_ftManager(this, entryId); };
+    bool isFighterActivate(EntryID entry, int getFollower=-1);
     void setSlow(int excludeTeam, int unknown, int slowStrength, int durationInFrames);
     int getEntryCount();
     bool isCpuActive(EntryID entry);
@@ -67,5 +75,6 @@ struct FtManager {
 #define _setSlow_ftManager ((void (*)(FtManager * self, int excludeTeam, int unknown, int slowStrength, int durationInFrames)) 0x80817c48)
 
 #define _isCpuActive_ftManager ((bool (*)(FtManager * self, EntryID entry)) 0x80814e5c)
+#define _isFighterActivate_ftManager ((bool (*)(FtManager* self, EntryID entry, int getFollower)) 0x80815034)
 
 #endif //PROJECTMCODES_FTMANAGER_H

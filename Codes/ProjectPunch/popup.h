@@ -35,6 +35,7 @@ struct PopupConfig {
      int popupPadding;
      GXColor bgColor;
      GXColor outlineColor;
+     GXColor highlightColor;
 };
 
 void drawAllPopups(vector<Popup*>& popups, TextPrinter& printer, u32 currentFrame);

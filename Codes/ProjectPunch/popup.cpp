@@ -5,7 +5,8 @@ extern u32 frameCounter;
 PopupConfig gPopupConfig = PopupConfig {
     .popupPadding = 10,
     .bgColor = COLOR_TRANSPARENT_GREY,
-    .outlineColor = 0xBBBBBBFF
+    .outlineColor = 0x333333FF,
+    .highlightColor = 0xBBBBBBFF
 };
 
 Popup::Popup(const char* text) {
@@ -18,6 +19,9 @@ Popup::Popup(const char* text) {
 Popup::~Popup() {
     delete[] this->text;
 }
+
+        void sneaky(vector<Drawable*>& shapes) {
+        }
 
 void Popup::draw(TextPrinter& printer) {
     // This will mess with the printer settings, you will likely have to reset draw mode and
@@ -75,11 +79,21 @@ void Popup::draw(TextPrinter& printer) {
             printer.is2D
         };
 
-        #ifdef PP_DEBUG
+        #ifdef PP_POPUP_DEBUG
         OSReport("Rendering popup: %s", this->message);
         #endif
-        printer.saveBoundingBox(printer.bboxIdx, gPopupConfig.bgColor, gPopupConfig.outlineColor, 6, gPopupConfig.popupPadding);
-        renderables.items.preFrame.push(progressRect);
+        printer.saveBoundingBox(printer.bboxIdx, gPopupConfig.bgColor, gPopupConfig.outlineColor, gPopupConfig.highlightColor, 2, gPopupConfig.popupPadding);
+        auto& shapes = renderables.items.preFrame;
+        shapes.push(progressRect);
+        // put the progress rect underneath the outline/highlight.
+        auto i = shapes.size()-1;
+        auto n = shapes[i];
+        auto nm1 = shapes[i-1];
+        auto nm2 = shapes[i-2];
+        shapes.set(i, nm1);
+        shapes.set(i-1, nm2);
+        shapes.set(i-2, n);
+        
     }
 }
 

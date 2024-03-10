@@ -14,8 +14,8 @@ char* strcpy(char* destination, const char* source) {
     return _strcpy(destination, source);
 }
 
-char* strcpy(char* destination, const char* source, int length) {
-    return _strcpylen(destination, source, length);
+char* strncpy(char* destination, const char* source, int length) {
+    return _strncpy(destination, source, length);
 }
 
 int strcmp(const char* str1, const char* str2) {

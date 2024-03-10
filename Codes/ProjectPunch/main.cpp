@@ -1,6 +1,9 @@
 
 #include "main.h"
 
+#include <Brawl/FT/ftOwner.h>
+
+bool initialized = false;
 
 // responsible for pausing exeuction of the game itself while the code menu is up
 INJECTION("TOGGLE_PAUSE", 0x8002E5B0, R"(
@@ -81,6 +84,43 @@ void printMessage(char const* msg, float xPos, float yPos, GXColor color = COLOR
     printer.saveBoundingBox(printer.bboxIdx, COLOR_TRANSPARENT_GREY, 10);
 }
 
+void printFighterState(PlayerData& playerData) {
+    playerData.debugStr(strManipBuffer);
+    printer.setup();
+    printer.renderPre = true;
+    printer.setTextColor(0xFFFFFFFF);
+    auto& msg = printer.message;
+    printer.lineHeight = punchMenu.lineHeight();
+    msg.fontScaleY = punchMenu.baseFontScale.y * punchMenu.fontScaleMultiplier;
+    msg.fontScaleX = punchMenu.baseFontScale.x * punchMenu.fontScaleMultiplier;
+    msg.edgeWidth = 1.0f;
+    msg.edgeColor = 0x000000FF;
+    msg.xPos = 50;
+    msg.yPos = 50;
+    printer.start2D();
+
+    printer.startBoundingBox();
+    printer.print(strManipBuffer);
+    printer.saveBoundingBox(printer.bboxIdx, 0, 10);
+}
+
+inline bool needsInitializing() {
+    if (initialized) return false;
+    auto fighters = FIGHTER_MANAGER->getEntryCount();
+    for (char i =  0; i < fighters; i++) {
+        auto entryId = FIGHTER_MANAGER->getEntryIdFromIndex(i);
+        auto opStatus = FIGHTER_MANAGER->getFighterOperationStatus(entryId);
+        #ifdef PP_INIT_DEBUG
+        OSReport("Fighter %d status %d\n", entryId, opStatus);
+        #endif
+        if (opStatus == 0) { 
+            return false;
+        }
+    }
+
+    return true;
+}
+
 // calls our function
 INJECTION("update_pre_frame", /*0x8001792c*/ 0x800177B0, R"(
     SAVE_REGS
@@ -94,12 +134,29 @@ extern "C" void updatePreFrame() {
     if (sceneType == SCENE_TYPE::VS || sceneType == SCENE_TYPE::TRAINING_MODE_MMS) {
         frameCounter += 1;
         renderables.renderPre();
+        renderables.clearAll();
+        if (!initialized && !needsInitializing()) {
+            #ifdef PP_INIT_DEBUG
+            OSReport("Bailing out to start early\n");
+            #endif
+            startNormalDraw();
+            return;
+        }
 
         int fighterCount;
         fighterCount = FIGHTER_MANAGER->getEntryCount();
         u8 idx = 0;
         for (idx = 0; idx < fighterCount; idx++) {
             gatherData(idx);
+        }
+
+        if (!punchMenu.visible) {
+            for (idx = 0; idx < fighterCount; idx++) {
+                if (allPlayerData[idx].showFighterState) {
+                    printFighterState(allPlayerData[idx]);
+                    break;
+                }
+            }
         }
 
         for(idx = 0; idx < fighterCount; idx++) {
@@ -123,17 +180,35 @@ extern "C" void updatePreFrame() {
         }
 
         if (FIGHTER_MANAGER->getEntryCount() > 0) {
-            if (punchMenu.initialized) {
+            if (initialized) {
                 punchMenu.handleInput();
-            } else if (allPlayerData[0].action() != ACTION_ENTRANCE) {
+                punchMenu.render(printer, strManipBuffer, PP_STR_MANIP_SIZE);
+            } else if (needsInitializing()) {
+                initialized = true;
                 punchMenu.init();
+
+                PADButtons pad;
+                pad.bits = (
+                    PREVIOUS_PADS[0].button.bits 
+                    | PREVIOUS_PADS[1].button.bits 
+                    | PREVIOUS_PADS[2].button.bits 
+                    | PREVIOUS_PADS[3].button.bits
+                );
+                if (!(pad.L == true || pad.R == true)) {
+                    punchMenu.toggle();
+                }
             }
         }
 
-        punchMenu.render(printer, strManipBuffer, PP_STR_MANIP_SIZE);
         drawAllPopups();
     } else {
-        punchMenu.cleanup();
+        if (initialized) {
+            initialized = false;
+            punchMenu.cleanup();
+
+            delete[] allPlayerData;
+            allPlayerData = new PlayerData[PP_MAX_PLAYERS];
+        }
     }
 
 
@@ -185,13 +260,25 @@ void gatherData(u8 player) {
     Fighter* fighter = FIGHTER_MANAGER->getFighter(entryId, 0);
     u8 playerNumber = FIGHTER_MANAGER->getPlayerNo(entryId);
 
+    if (needsInitializing()) {
+        auto* ftInput = FIGHTER_MANAGER->getInput(entryId);
+        int opType = FIGHTER_MANAGER->getFighterOperationType(entryId);
+        OSReport("Player %d op type: %d input: 0x%x\n", playerNumber, opType, ftInput);
+        if (opType != 0) {
+            allPlayerData[playerNumber].showOnShieldAdvantage = false;
+            allPlayerData[playerNumber].showOnHitAdvantage = false;
+        } else {
+            allPlayerData[playerNumber].showOnShieldAdvantage = true;
+            allPlayerData[playerNumber].showOnHitAdvantage = false;
+        };
+
+    }
+
     PlayerData& playerData = allPlayerData[playerNumber];
     playerData.prepareNextFrame();
     PlayerDataOnFrame& currentData = *playerData.current;
     PlayerDataOnFrame& prevData = *playerData.current;
-
-    playerData.charKind = (CHAR_ID)(fighter->getFtKind());
-
+    playerData.charId = (CHAR_ID)(fighter->getFtKind());
 
     allPlayerData[player].playerNumber = playerNumber;
 
@@ -287,7 +374,7 @@ void gatherData(u8 player) {
             auto animationResource = animationData.resPtr->CHR0Ptr;
             // OSReport("Animation Resource: 0x%X\n", animationResource);
             if (animationResource == nullptr) {
-                strcpy(playerData.current->subactionName, "UNKNOWN", PP_ACTION_NAME_LEN);
+                strncpy(playerData.current->subactionName, "UNKNOWN", PP_ACTION_NAME_LEN);
                 playerData.current->actionTotalFrames = -1;
             } else {
                 playerData.current->subactionFrame = motionModule->getFrame();
@@ -295,7 +382,8 @@ void gatherData(u8 player) {
                 // do these ever differ, except by 1?
                 playerData.current->subactionTotalFrames = motionModule->getEndFrame();
                 playerData.current->actionTotalFrames = animationResource->animLength;
-                strcpy(playerData.current->subactionName, animationResource->getString(), PP_ACTION_NAME_LEN);
+
+                strncpy(playerData.current->subactionName, animationResource->getString(), PP_ACTION_NAME_LEN);
             }
 
             playerData.current->actionFrame = (u32)animationData.animFrame;
@@ -368,7 +456,7 @@ void checkAttackTargetActionable(u8 playerNum) {
                     Popup& popup = *(new Popup(strManipBuffer));
                     popup.coords = getHpPopupBoxCoords(player.playerNumber);
                     popup.durationSecs = 3;
-                    playerPopups[playerNum].append(popup);
+                    playerPopups[player.playerNumber].append(popup);
                 }
             }
 

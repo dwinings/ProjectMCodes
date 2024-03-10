@@ -7,9 +7,9 @@
 #include "./playerdata.h"
 
 #include <Brawl/FT/ftManager.h>
+#include "fighterNames.h"
 
 extern u32 frameCounter;
-extern PlayerData allPlayerData[PP_MAX_PLAYERS];
 
 /* EXTERN DEFS */
 PpunchMenu& punchMenu = *(new PpunchMenu());
@@ -22,22 +22,32 @@ linkedlist<Popup> playerPopups[PP_MAX_PLAYERS] = {
 /************/
 
 void PpunchMenu::init() {
-    padding = 25;
-    bgColor = 0x2D2D2DDD;  // dark grey
-    highlightedColor = 0xEEE8AAFF; //ylw
-    selectedColor = 0xB0C4DEFF; // blu
-    defaultColor = 0xFFFFFFFF; 
-    outlineColor = 0xBBBBBBFF; // light grey
-    highlightBoxColor = 0x000000FF;
+    /* Controls Info Page */
+    OSReport("Initializing Project Punch menu.\n");
+    auto& ctrlInfoPage = *(new Page(this));
+    snprintf(ctrlInfoPage.title, 256, "Menu Controls");
+    ctrlInfoPage.addOption(new LabelOption("L+R+DpadUp", "Open and close the menu."));
+    ctrlInfoPage.addOption(new LabelOption("L/R", "Prev/Next Page"));
+    ctrlInfoPage.addOption(new LabelOption("A/B",  "Select / Cancel Selection"));
+    ctrlInfoPage.addOption(new LabelOption("DPad U/D", "Select options"));
+    ctrlInfoPage.addOption(new LabelOption("DPad L/R", "Adjust selected value"));
+    ctrlInfoPage.addOption(new LabelOption("Start", "Resume gameplay with menu open"));
+    ctrlInfoPage.addOption(new LabelOption("X (hold)", "No input delay (turbo)"));
+    ctrlInfoPage.addOption(new LabelOption("Y (hold)", "Adjust values by 5x the default amount"));
+    ctrlInfoPage.addOption(new LabelOption("L/R (hold on startup)", "Don't open this menu automatically"));
+    addPage(&ctrlInfoPage);
 
-    for (u32 i = 0; i < FIGHTER_MANAGER->getEntryCount(); i++) {
+    auto fighters = FIGHTER_MANAGER->getEntryCount();
+    OSReport("Detected %d fighters.\n", fighters);
+    for (u32 i = 0; i < fighters; i++) {
         auto& newPage = *(new Page(this));
         auto& player = allPlayerData[i];
-
-        // OSReport("Adding page: 0x%x\n", (void*)newPage);
-        snprintf(newPage.title, 256, "Fighter %d (%d)", i, player.charKind);
+        auto ftName = fighterName(player.charId);
+        OSReport("Adding page for P%d: %s @ 0x%x\n", player.playerNumber, ftName, (void*)&player);
+        snprintf(newPage.title, 256, "P%d = %s", i+1, fighterName(player.charId));
         newPage.addOption(new BoolOption("Popup: On-Shield Advantage", player.showOnShieldAdvantage));
         newPage.addOption(new BoolOption("Popup: On-Hit Advantage", player.showOnHitAdvantage));
+        newPage.addOption(new BoolOption("Show Fighter State", player.showFighterState));
         newPage.addOption(new SpacerOption());
 
         auto& playerInfoSubpage = *(new SubpageOption("Fighter Info", true));
@@ -48,13 +58,18 @@ void PpunchMenu::init() {
         playerInfoSubpage.addOption(new PlayerDataFlagObserver("RA Bits", &player, &PlayerData::raLowBits));
         newPage.addOption(&playerInfoSubpage);
         addPage(&newPage);
+
     }
 
+    // TODO: Reimplement scrolling. This is w/e for now.
     auto& displayOptsPage = *(new Page(this));
     snprintf(displayOptsPage.title, 256, "Display Options");
     displayOptsPage.addOption(new IntOption<u8>("Opacity", opacity, 65, 255, true, true));
-    displayOptsPage.addOption(new FloatOption("Title Font Scaling", titleFontScaleMultiplier, 0.0F, 10.0F, 0.1F));
-    displayOptsPage.addOption(new FloatOption("Font Scaling", fontScaleMultiplier, 0.0F, 10.0F, 0.1F));
+    displayOptsPage.addOption(new FloatOption("Title Font Scaling", titleFontScaleMultiplier, 0.0F, 10.0F, 0.01F));
+    displayOptsPage.addOption(new FloatOption("Font Scaling", fontScaleMultiplier, 0.0F, 10.0F, 0.01F));
+    displayOptsPage.addOption(new IntOption<int>("Line Height", lineHeightMultiplier, 0, 50, true, false));
+    displayOptsPage.addOption(new FloatOption("Font base X", baseFontScale.x, 0.0F, 10.0F, 0.01F));
+    displayOptsPage.addOption(new FloatOption("Font base Y", baseFontScale.y, 0.0F, 10.0F, 0.01F));
 
     auto& menuSizeSubPage = *(new SubpageOption("Menu Position", true));
     menuSizeSubPage.addOption(new IntOption<int>("Menu X", pos.x));
@@ -69,7 +84,22 @@ void PpunchMenu::init() {
     bgColorSubP.addOption(new IntOption<u8>("B", bgColor.green, 0, 255, true, true));
     bgColorSubP.addOption(new IntOption<u8>("A", bgColor.alpha, 0, 255, true, true));
     displayOptsPage.addOption(&bgColorSubP);
+
+    auto& outlineColorSubP = *(new SubpageOption("Menu Outline", true));
+    outlineColorSubP.addOption(new IntOption<u8>("R", outlineColor.red, 0, 255, true, true));
+    outlineColorSubP.addOption(new IntOption<u8>("G", outlineColor.blue, 0, 255, true, true));
+    outlineColorSubP.addOption(new IntOption<u8>("B", outlineColor.green, 0, 255, true, true));
+    outlineColorSubP.addOption(new IntOption<u8>("A", outlineColor.alpha, 0, 255, true, true));
+    displayOptsPage.addOption(&outlineColorSubP);
+
+    auto& highlightBoxSubP = *(new SubpageOption("Highlight Box", true));
+    highlightBoxSubP.addOption(new IntOption<u8>("R", highlightBoxColor.red, 0, 255, true, true));
+    highlightBoxSubP.addOption(new IntOption<u8>("G", highlightBoxColor.blue, 0, 255, true, true));
+    highlightBoxSubP.addOption(new IntOption<u8>("B", highlightBoxColor.green, 0, 255, true, true));
+    highlightBoxSubP.addOption(new IntOption<u8>("A", highlightBoxColor.alpha, 0, 255, true, true));
+    displayOptsPage.addOption(&highlightBoxSubP);
     addPage(&displayOptsPage);
+
 
     currentPageIdx = 0;
     initialized = true;
@@ -77,26 +107,48 @@ void PpunchMenu::init() {
 
 void PpunchMenu::cleanup() {
     currentPageIdx = 0;
-    pages.empty();
+    pages.clear();
     initialized = false;
+    paused = false;
+    visible = false;
 }
 
 void PpunchMenu::handleInput() {
     auto& menu = *this;
     PADButtons btn;
 
+    u16 mask = 0b0001111101111111; // These button fields are unknown.
     btn.bits = (
         PREVIOUS_PADS[0].button.bits 
         | PREVIOUS_PADS[1].button.bits 
         | PREVIOUS_PADS[2].button.bits 
         | PREVIOUS_PADS[3].button.bits
-    ) & 0b0001111101111111; // mask out the unknown button fields.
-    if (btn.bits == 0) {
-        return; // shortcut
+    ) & mask; 
+
+    // The following additions to the mask are things that we want
+    // to not trigger if they are held down. 
+    // This masks out the Y button bit... this is fine because 
+    // the Y button is just a hold modifier so we don't actually
+    // want it trigger our debounce. Same with held L and R.
+    mask &= 0b1111011111111111;
+    if (LLastFrame) {
+        mask &= 0b1111111110111111;
+    }
+    if (RLastFrame) {
+        mask &= 0b1111111111011111;
+    }
+    if ((btn.bits & mask) == 0) {
+        #ifdef PP_MENU_INPUT_DEBUG
+        OSReport("Bailed out by bitmask: %d\n", btn.bits);
+        #endif
+        goto end; // shortcut
     }
 
     if (!btn.X && ((frameCounter - lastInputFrame) < PP_MENU_INPUT_SPEED)) {
-        return; // debounce inputs.
+        #ifdef PP_MENU_INPUT_DEBUG
+        OSReport("Bailed out by debounce: %d\n", btn.bits);
+        #endif
+        goto end; // debounce inputs.
     } 
 
     lastInputFrame = frameCounter;
@@ -104,46 +156,55 @@ void PpunchMenu::handleInput() {
 
     if (btn.L && btn.R && btn.UpDPad) {
         menu.toggle();
-        return;
+        goto end;
     }
 
     if (!menu.isActive()) {
-        return; // reduce nesting.
+        #ifdef PP_MENU_INPUT_DEBUG
+        OSReport("Bailed out by !isActive: %d\n", btn.bits);
+        #endif
+        goto end; // reduce nesting.
     }
 
-    if (btn.A) { menu.select();   return; }
-    if (btn.B) { menu.deselect(); return; }
-    /*
-    if (menu.selected) {
-        if      (btn.UpDPad   | btn.RightDPad) menu.modify(btn.Y ?  5 :  1);
-        else if (btn.DownDPad | btn.LeftDPad)  menu.modify(btn.Y ? -5 : -1);
-        return;
-    } else {
-        */
-        if      (btn.UpDPad)    menu.up();
-        else if (btn.DownDPad)  menu.down();
-        else if (btn.RightDPad) menu.modify(btn.Y ?  5 :  1);
-        else if (btn.LeftDPad)  menu.modify(btn.Y ? -5 : -1);
-        else if (btn.L)  menu.prevPage();
-        else if (btn.R)  menu.nextPage();
-        else if (btn.Start) menu.unpause();
-        return;
+    if (btn.A) { menu.select();   goto end; }
+    if (btn.B) { menu.deselect(); goto end; }
+
+    if (btn.UpDPad)    menu.up();
+    else if (btn.DownDPad)  menu.down();
+    else if (btn.RightDPad) menu.modify(btn.Y ? 5 : 1);
+    else if (btn.LeftDPad)  menu.modify(btn.Y ? -5 : -1);
+    else if (btn.L && !LLastFrame)  menu.prevPage();
+    else if (btn.R && !RLastFrame)  menu.nextPage();
+    else if (btn.Start) menu.unpause();
     //}
+    end:
+        LLastFrame = btn.L == true;
+        RLastFrame = btn.R == true;
+        return;
 }
 
 float PpunchMenu::lineHeight() {
     return this->baseFontScale.y * fontScaleMultiplier * this->lineHeightMultiplier;
 }
 
+
+// #define MELEE_STD_FONT (FontData*) 0x80497d2c; // crash
+// #define MELEE_HIRANGA_FONT (FontData*) 0x80497d54; // crash
+#define END_FONT (FontData*) 0x80497da4; // Works, Blocky, no punctuation
+// Works: . / ? " ~ ! (@=pencil) % & + - = ' : ; , 
+// Doesnt: () # $ ^ * _ ` [] {} \ <> |
+// #define MELEE_MONO_FONT (FontData*) 0x80497dcc; // crash (needs monospace maybe? (no, doesn't work))
+// resant font (I use)
+// #define FOX_FONT (FontData*) 0x80497df4; // crash
+// #define ALERT_FONT (FontData*) 0x80497e1c; // crash
+#define USA_MAIN_MENU_FONT (FontData*) 0x80497e6c; // Works, no punctuation
+// #define UNKNOWN_FONT (FontData*) 0x80497d7c; // crash
 void PpunchMenu::render(TextPrinter& printer, char* buffer, u32 maxLen) {
     if (!visible) { return; }
     if (pages.size() == 0) {
         OSReport("Tried to render a menu with no pages.\n");
         return;
     }
-
-    highlightedOptionBottom = 0;
-    highlightedOptionTop = 0;
 
     /* Setup */
     printer.setup();
@@ -159,13 +220,18 @@ void PpunchMenu::render(TextPrinter& printer, char* buffer, u32 maxLen) {
     /* Print title */
     auto& currentPage = *getCurrentPage();
     snprintf(buffer, maxLen, "Page %d / %d: %s", currentPageIdx+1, pages.size(), currentPage.getTitle());
-    printerMsgObj.fontScaleY = baseFontScale.y * titleFontScaleMultiplier;
-    printerMsgObj.fontScaleX = baseFontScale.x * titleFontScaleMultiplier;
-    printer.lineHeight = this->baseFontScale.y * titleFontScaleMultiplier * this->lineHeightMultiplier;
-    printer.setTextColor(applyAlpha(highlightedColor, opacity));
+    printerMsgObj.fontScaleY = titleBaseFontScale.y * titleFontScaleMultiplier;
+    printerMsgObj.fontScaleX = titleBaseFontScale.x * titleFontScaleMultiplier;
+    printer.lineHeight = this->titleBaseFontScale.y * titleFontScaleMultiplier * this->lineHeightMultiplier;
+    printer.message.edgeWidth = 1;
+    printer.message.edgeColor = 0x000000FF;
+    printer.message.font = END_FONT;
+    printer.message.drawFlag.alignment = 2;
+    printer.setTextColor(applyAlpha(defaultColor, opacity));
     printer.printLine(buffer);
     
     /* Print body */
+    printer.message.font = MELEE_FONT;
     printerMsgObj.fontScaleY = baseFontScale.y * fontScaleMultiplier;
     printerMsgObj.fontScaleX = baseFontScale.x * fontScaleMultiplier;
     printer.lineHeight = lineHeight();
@@ -174,8 +240,8 @@ void PpunchMenu::render(TextPrinter& printer, char* buffer, u32 maxLen) {
 
     /* Draw graphics */
     drawBg(printer);
-    drawOutline(printer);
     drawHighlightBox();
+    drawOutline(printer);
 
     /* Reset */
     printer.setup();
@@ -204,27 +270,46 @@ void PpunchMenu::drawOutline(TextPrinter& printer) {
             0,
             1,
             applyAlpha(outlineColor, opacity),
-            (float)(pos.y - 1),
+            (float)(pos.y),
 //            message.yPos + printer.lineHeight + padding + 1,
             (float)pos.y + size.y,
-            (float)(pos.x - 1),
-            (float)(pos.x + size.x + 1),
+            (float)(pos.x),
+            (float)(pos.x + size.x),
             outlineWidth * 6,
+            true
+    });
+
+    renderables.items.preFrame.push(new RectOutline{
+            0,
+            1,
+            applyAlpha(0xFFFFFFFF, opacity),
+            (float)(pos.y),
+//            message.yPos + printer.lineHeight + padding + 1,
+            (float)pos.y + size.y,
+            (float)(pos.x),
+            (float)(pos.x + size.x),
+            12,
             true
     });
 }
 
 void PpunchMenu::drawHighlightBox() {
-    if (highlightedOptionBottom == 0 || highlightedOptionTop == 0) { return; }
+    auto& currentPage = *pages[currentPageIdx];
+    if (!(currentPage.highlightedOptionBottom == 0 || currentPage.highlightedOptionTop == 0)) { 
+        // OSReport("Drawing highlight top: %0.01f bot: %0.01f\n", currentPage.highlightedOptionTop, currentPage.highlightedOptionBottom);
 
-    renderables.items.preFrame.push(new Rect {
-        0,
-        1,
-        applyAlpha(highlightBoxColor, opacity),
-        highlightedOptionTop,
-        highlightedOptionBottom,
-        pos.x + padding,
-        pos.x + size.x - padding,
-        true
-    });
+        renderables.items.preFrame.push(new Rect {
+            0,
+            1,
+            applyAlpha(highlightBoxColor, opacity),
+            currentPage.highlightedOptionTop,
+            currentPage.highlightedOptionBottom,
+            (float)pos.x,
+            (float)(pos.x + size.x),
+            true
+        });
+
+        currentPage.highlightedOptionBottom = 0;
+        currentPage.highlightedOptionTop = 0;
+    }
 }

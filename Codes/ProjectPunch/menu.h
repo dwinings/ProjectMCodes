@@ -27,12 +27,15 @@ struct OptionType {
     virtual void setParentPage(Page* p) = 0;
     virtual bool isScalarOption() { return true; };
     virtual bool isFullySelected() { return isSelected; };
+    void rawRender(TextPrinter* printer, const char* buffer);
+
     virtual ~OptionType() {};
     const char* name;
     Page* parent;
     SubpageOption* subParent = nullptr;
     bool isSelected = false;
     bool canModify = true;
+    bool terminal = true;
 };
 
 struct StandardOption : public OptionType {
@@ -51,6 +54,10 @@ struct Page {
     void down();
     void modify(float amount);
     void render(TextPrinter* printer, char* buffer);
+    void saveHighlightRegion(TextPrinter* printer) {
+        highlightedOptionTop = printer->message.yPos;
+        highlightedOptionBottom = printer->message.yPos + printer->lineHeight;
+    };
     virtual void show();
     virtual void select();
     virtual void deselect();
@@ -61,7 +68,11 @@ struct Page {
     vector<OptionType*> options;
     char currentOption = 0;
     bool isSelected = false;
+    float highlightedOptionTop = 0.0;
+    float highlightedOptionBottom = 0.0;
     Menu* menu;
+
+    // TODO: Make this a title returning function.
     char title[256] = "generic page";
 };
 
@@ -85,8 +96,6 @@ public:
     bool selected = false;
     vector<Page*> pages;
 
-    float highlightedOptionTop;
-    float highlightedOptionBottom;
     u8 opacity = 0xFF;
     GXColor highlightedColor = 0xFFFFFFFF;
     GXColor selectedColor = 0x3333FFFF;
@@ -265,6 +274,19 @@ private:
     char* value;
 };
 
+class LabelOption: public StandardOption {
+    public:
+        LabelOption(const char* name, const char* value): value(value) {
+            this->name = name;
+            this->canModify = false;
+        }
+
+        void modify(float amount) {};
+        void render(TextPrinter* printer, char* buffer);
+    private:
+        const char* value;
+};
+
 class NamedIndexOption : public StandardOption {
 public:
     NamedIndexOption(const char* name, const char** nameArray, int& index, int arrayLength) : index(index), nameArray(nameArray) {
@@ -341,6 +363,7 @@ public:
     bool hasSelection = false;
     bool collapsible = false;
     bool collapsed = true;
+    bool terminal = false;
 };
 
 class SpacerOption : public StandardOption {

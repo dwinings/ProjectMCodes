@@ -97,12 +97,11 @@ void TextPrinter::printLine(const char *chars) {
 }
 
 void TextPrinter::setTextColor(GXColor color) {
-    this->message.textColor.color1 = color;
+    this->message.textColor.color1 = color; // top left 
     this->message.textColor.color2 = color;
     this->message.textColor.color3 = color;
     this->message.textColor.color4 = color;
-//    appears to be unused?
-//    this->message.textColor.color5 = color;
+    this->message.textColor.color5 = color;
 }
 
 void TextPrinter::print(const char *chars) {
@@ -149,10 +148,10 @@ void TextPrinter::startBoundingBox() {
 }
 
 void TextPrinter::saveBoundingBox(int id, GXColor color, float boxPadding) {
-    saveBoundingBox(id, color, 0, 0, boxPadding);
+    saveBoundingBox(id, color, 0, 0, 0, boxPadding);
 }
 
-void TextPrinter::saveBoundingBox(int id, GXColor bgColor, GXColor outlineColor, int outlineWidth, float boxPadding) {
+void TextPrinter::saveBoundingBox(int id, GXColor bgColor, GXColor outlineColor, GXColor highlightColor, int outlineWidth, float boxPadding) {
     if (lineStart + maxWidth < message.xPos) {
         maxWidth = message.xPos - lineStart;
     }
@@ -169,8 +168,8 @@ void TextPrinter::saveBoundingBox(int id, GXColor bgColor, GXColor outlineColor,
             is2D
     };
     // OSReport("Rect in (t, b, l, r): %.3f, %.3f, %.3f, %.3f\n", r.top, r.bottom, r.left, r.right);
-    if (renderPre) renderables.items.preFrame.insert(r, bboxIdx);
-    else renderables.items.frame.insert(r, bboxIdx);
+    if (renderPre) renderables.items.preFrame.push(r);
+    else renderables.items.frame.push(r);
 
     if (outlineWidth != 0) {
         RectOutline* ro = new RectOutline {
@@ -181,12 +180,26 @@ void TextPrinter::saveBoundingBox(int id, GXColor bgColor, GXColor outlineColor,
             (message.yPos + lineHeight + boxPadding) * multiplier,
             lineStart - boxPadding,
             lineStart + maxWidth + boxPadding,
-            outlineWidth,
+            outlineWidth * 6,
             is2D,
         };
 
-        if (renderPre) renderables.items.preFrame.insert(ro, bboxIdx+1);
-        else renderables.items.frame.insert(ro, bboxIdx+1);
+        RectOutline* roHighlight = new RectOutline {
+            0,
+            1,
+            highlightColor,
+            (startY - boxPadding) * multiplier,
+            (message.yPos + lineHeight + boxPadding) * multiplier,
+            lineStart - boxPadding,
+            lineStart + maxWidth + boxPadding,
+            (int)(((float)outlineWidth / 2.0f) * 6.0f),
+            is2D,
+        };
+
+        if (renderPre) renderables.items.preFrame.push(ro);
+        else renderables.items.frame.push(ro);
+        if (renderPre) renderables.items.preFrame.push(roHighlight);
+        else renderables.items.frame.push(roHighlight);
     }
 
     setup();

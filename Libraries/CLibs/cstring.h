@@ -8,7 +8,7 @@
 
 #define _strcat ((char* (*)(char* destination, const char* source)) 0x803fa384)
 #define _strcpy ((char* (*)(char* destination, const char* source)) 0x803fa280)
-#define _strcpylen ((char* (*)(char* destination, const char* source, int size)) 0x803fa340)
+#define _strncpy ((char* (*)(char* destination, const char* source, int size)) 0x803fa340)
 #define _sprintf ((int (*)(char* buffer, const char* format, ...)) 0x803f89fc)
 #define _strstr ((char* (*)(const char* buffer, const char* target)) 0x803fa798)
 #define _strcmp ((int (*)(const char* str1, const char* str2)) 0x803fa3fc)
@@ -18,7 +18,7 @@
 
 char* strcat(char* destination, const char* source);
 char* strcpy(char* destination, const char* source);
-char* strcpy(char* destination, const char* source, int length);
+char* strncpy(char* destination, const char* source, int length);
 int strcmp(const char* str1, const char* str2);
 //return ptr to first occurance of target in buffer, or nullptr if not found
 char* strstr(const char* buffer, const char* target);
